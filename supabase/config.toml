@@ -1,0 +1,2 @@
+[functions.scrape-news]
+verify_jwt = false
