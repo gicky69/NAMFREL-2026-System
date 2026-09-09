@@ -19,6 +19,7 @@ export default function NewsFeed() {
   const fetchArticles = useCallback(async () => {
     setLoading(true);
     setError(null);
+    
     try {
       const { data, error: err } = await supabase
         .from("news_articles")

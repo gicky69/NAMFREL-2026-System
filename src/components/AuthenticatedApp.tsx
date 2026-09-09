@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { Newspaper, LayoutDashboard, FileWarning, AlertTriangle, Menu, X } from "lucide-react";
 import { CircleUser, ChevronDown, User, LogOut } from "lucide-react";
+
+import { signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+
 import Dashboard from "@/components/Dashboard";
 import NewsFeed from "@/components/NewsFeed";
 import ReportIncident from "@/components/ReportIncident";
@@ -18,7 +22,30 @@ const NAV_ITEMS: { id: Page; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "admin", label: "Admin", icon: LayoutDashboard }
 ];
 
-export default function AuthenticatedApp() {
+type Profile = {
+  email: string;
+  full_name: string | null;
+  role: string;
+  is_verified: boolean;
+};
+
+type Props = {
+  profile: Profile;
+  onLogout: () => void;
+};
+
+export default function AuthenticatedApp({profile, onLogout,}: Props) {
+
+    const handleLogout = async () => {
+    try {
+        await signOut(auth);
+        console.log("User logged out successfully");
+        onLogout(); // Call the onLogout callback to update the parent state
+    } catch (error) {
+        console.error("Logout error:", error);
+    }
+    };
+
   const [page, setPage] = useState<Page>("dashboard");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false); // for user profile dropdown
@@ -96,7 +123,7 @@ export default function AuthenticatedApp() {
                   {/* Profile */}
                   <button
                     onClick={() => {
-                      navigate("profile");
+                      // navigate("profile");
                       setUserMenuOpen(false);
                     }}
                     className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-slate-100 transition-colors"
@@ -109,9 +136,9 @@ export default function AuthenticatedApp() {
 
                   {/* Logout */}
                   <button
-                    onClick={() => {
-                      navigate("logout");
-                      setUserMenuOpen(false);
+                    onClick={ () => {
+                        handleLogout();
+                        setUserMenuOpen(false);
                     }}
                     className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
                   >
