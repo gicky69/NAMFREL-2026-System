@@ -4,6 +4,7 @@ import Dashboard from "@/components/Dashboard";
 import NewsFeed from "@/components/NewsFeed";
 import ReportIncident from "@/components/ReportIncident";
 import IncidentsList from "@/components/IncidentsList";
+import logo from "./assets/apc-logo.png";
 
 type Page = "dashboard" | "news" | "report" | "incidents";
 
@@ -35,16 +36,19 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
-      <header className="bg-teal-800 text-white sticky top-0 z-50 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+      <header className="header bg-primary text-white sticky top-0 z-50 shadow-lg h-20">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-teal-600 rounded-lg flex items-center justify-center ring-2 ring-teal-400/30">
-                <Newspaper className="w-5 h-5 text-white" />
+              {/* Logo */}
+              <div className="w-12 h-12">
+                <img src={logo} alt="Logo" className="w-12 h-12" />
               </div>
+
+              {/* Title */}
               <div>
-                <h1 className="text-lg font-bold leading-tight">BARMM Election Monitor</h1>
-                <p className="text-xs text-teal-200 hidden sm:block">Sentiment Analysis & Incident Reporting</p>
+                <h1 className="text-xl text-white font-bold leading-tight">Incident Reporting & Sentiment Analysis</h1>
+                <p className="text-xs text-white font-bold hidden sm:block">BARMM 2026 Elections</p>
               </div>
             </div>
 
@@ -56,10 +60,8 @@ export default function App() {
                   <button
                     key={item.id}
                     onClick={() => navigate(item.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      page === item.id
-                        ? "bg-teal-600 text-white shadow-sm"
-                        : "text-teal-100 hover:bg-teal-700 hover:text-white"
+                    className={`nav-item flex items-center gap-1 px-3 py-1 rounded-lg text-base font-medium ${
+                      page === item.id ? "active text-white" : "text-white"
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -72,7 +74,7 @@ export default function App() {
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-teal-700 transition-colors"
+              className="md:hidden p-2 rounded-lg hover:bg-primary-dark transition-all duration-200"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -82,7 +84,7 @@ export default function App() {
 
         {/* Mobile Nav */}
         {mobileMenuOpen && (
-          <nav className="md:hidden bg-teal-800 border-t border-teal-700 animate-fade-in">
+          <nav className="md:hidden bg-primary border-t border-primary-dark animate-fade-in">
             <div className="px-4 py-3 space-y-1">
               {NAV_ITEMS.map((item) => {
                 const Icon = item.icon;
@@ -92,8 +94,8 @@ export default function App() {
                     onClick={() => navigate(item.id)}
                     className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                       page === item.id
-                        ? "bg-teal-600 text-white"
-                        : "text-teal-100 hover:bg-teal-700"
+                        ? "bg-primary-dark text-white"
+                        : "text-white hover:bg-primary-dark hover:text-white"
                     }`}
                   >
                     <Icon className="w-4 h-4" />
