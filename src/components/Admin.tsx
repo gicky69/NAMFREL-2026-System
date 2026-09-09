@@ -1,58 +1,138 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, AlertTriangle, Tags, Globe, Check, X, Plus } from 'lucide-react';
+import { supabase } from '@/lib/supabase'; // Ensure this path matches your project structure
+import { UserProfile, Incident, IncidentCategory, NewsSource } from '@/types'; 
+// Or import from '../types' depending on your folder structure
 
 type TabType = 'users' | 'reports' | 'categories' | 'sources';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState<TabType>('users');
 
-  // Placeholder states (Replace with actual data fetching from Supabase/FastAPI)
-  const [users] = useState([
-    { id: '1', name: 'Ahmad M.', role: 'public', status: 'pending' },
-    { id: '2', name: 'Fatima R.', role: 'personnel', status: 'verified' },
-  ]);
-  
-  const [reports] = useState([
-    { id: '101', title: 'Vote Buying Allegation', location: 'Marawi City', status: 'pending_verification' },
-    { id: '102', title: 'Intimidation at Polling Precinct', location: 'Cotabato City', status: 'pending_verification' },
-  ]);
+  // Real states replacing placeholders
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [reports, setReports] = useState<Incident[]>([]);
+  const [categories, setCategories] = useState<IncidentCategory[]>([]);
+  const [sources, setSources] = useState<NewsSource[]>([]);
 
-  const [categories, setCategories] = useState(['Violence', 'Vote Buying', 'Machine Malfunction']);
+  // Input states
   const [newCategory, setNewCategory] = useState('');
-
-  const [sources, setSources] = useState(['https://mindanaonews.com', 'https://barmm.gov.ph/news']);
   const [newSource, setNewSource] = useState('');
 
-  // --- Handlers (Wire these to your backend/Supabase) ---
-  const handleVerifyUser = (id: string, newRole: string) => {
-    console.log(`Verify user ${id} as ${newRole}`);
-    // API Call: Update user profile role and status
+  // --- 1. Data Fetching on Mount ---
+  useEffect(() => {
+    fetchUsers();
+    fetchReports();
+    fetchCategories();
+    fetchSources();
+  }, []);
+
+  const fetchUsers = async () => {
+    const { data, error } = await supabase.from('profiles').select('*');
+    if (!error && data) setUsers(data);
   };
 
-  const handleVerifyReport = (id: string, isVerified: boolean) => {
-    console.log(`Report ${id} verification: ${isVerified}`);
-    // API Call: Update incident status to 'verified' or 'rejected'
+  const fetchReports = async () => {
+    const { data, error } = await supabase.from('incidents').select('*').eq('status', 'reported');
+    if (!error && data) setReports(data);
   };
 
-  const handleAddCategory = (e: React.FormEvent) => {
+  const fetchCategories = async () => {
+    const { data, error } = await supabase.from('incident_categories').select('*');
+    if (!error && data) setCategories(data);
+  };
+
+  const fetchSources = async () => {
+    const { data, error } = await supabase.from('news_sources').select('*');
+    if (!error && data) setSources(data);
+  };
+
+  // --- 2. Mutation Handlers ---
+  const handleVerifyUser = async (id: string, newRole: string) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ role: newRole, is_verified: true })
+      .eq('id', id);
+
+    if (!error) {
+      setUsers(users.map((u) => (u.id === id ? { ...u, role: newRole, is_verified: true } : u)));
+    } else {
+      console.error('Error verifying user:', error);
+    }
+  };
+
+  const handleVerifyReport = async (id: string, isVerified: boolean) => {
+    const newStatus = isVerified ? 'verified' : 'rejected';
+    const { error } = await supabase
+      .from('incidents')
+      .update({ status: newStatus })
+      .eq('id', id);
+
+    if (!error) {
+      setReports(reports.filter((r) => r.id !== id));
+    } else {
+      console.error('Error updating report:', error);
+    }
+  };
+
+  const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategory) return;
-    setCategories([...categories, newCategory]);
-    setNewCategory('');
-    // API Call: Insert into incident_categories table
+
+    const { data, error } = await supabase
+      .from('incident_categories')
+      .insert([{ name: newCategory }])
+      .select();
+
+    if (!error && data) {
+      setCategories([...categories, data[0]]);
+      setNewCategory('');
+    } else {
+      console.error('Error adding category:', error);
+    }
   };
 
-  const handleDeleteCategory = (categoryToDelete: string) => {
-    setCategories(categories.filter((cat) => cat !== categoryToDelete));
-    // API Call: Delete from incident_categories table
+  const handleDeleteCategory = async (categoryToDelete: string) => {
+    const { error } = await supabase
+      .from('incident_categories')
+      .delete()
+      .eq('name', categoryToDelete);
+
+    if (!error) {
+      setCategories(categories.filter((cat) => cat.name !== categoryToDelete));
+    } else {
+      console.error('Error deleting category:', error);
+    }
   };
 
-  const handleAddSource = (e: React.FormEvent) => {
+  const handleAddSource = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSource) return;
-    setSources([...sources, newSource]);
-    setNewSource('');
-    // API Call: Insert into news_sources table
+
+    const { data, error } = await supabase
+      .from('news_sources')
+      .insert([{ name: new URL(newSource).hostname, url: newSource }])
+      .select();
+
+    if (!error && data) {
+      setSources([...sources, data[0]]);
+      setNewSource('');
+    } else {
+      console.error('Error adding source:', error);
+    }
+  };
+
+  const handleDeleteSource = async (id: string) => {
+    const { error } = await supabase
+      .from('news_sources')
+      .delete()
+      .eq('id', id);
+
+    if (!error) {
+      setSources(sources.filter((source) => source.id !== id));
+    } else {
+      console.error('Error deleting source:', error);
+    }
   };
 
   return (
@@ -88,26 +168,28 @@ export default function Admin() {
         {/* USERS TAB */}
         {activeTab === 'users' && (
           <div>
-            <h2 className="text-xl font-semibold mb-4">Pending User Verifications</h2>
+            <h2 className="text-xl font-semibold mb-4">User Management</h2>
             <div className="divide-y divide-gray-200">
               {users.map((user) => (
                 <div key={user.id} className="py-4 flex items-center justify-between">
                   <div>
-                    <p className="font-medium text-gray-900">{user.name}</p>
-                    <p className="text-sm text-gray-500">Current Role: {user.role}</p>
+                    <p className="font-medium text-gray-900">{user.full_name || user.email}</p>
+                    <p className="text-sm text-gray-500">Current Role: <span className="font-semibold">{user.role}</span></p>
                   </div>
                   <div className="flex space-x-2">
                     <button 
                       onClick={() => handleVerifyUser(user.id, 'personnel')}
                       className="px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm font-medium"
+                      disabled={user.role === 'personnel'}
                     >
-                      Approve as Personnel
+                      Make Personnel
                     </button>
                     <button 
                       onClick={() => handleVerifyUser(user.id, 'public')}
                       className="px-4 py-2 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium"
+                      disabled={user.role === 'public'}
                     >
-                      Delete
+                      Make Public
                     </button>
                   </div>
                 </div>
@@ -121,11 +203,12 @@ export default function Admin() {
           <div>
             <h2 className="text-xl font-semibold mb-4">Unverified Incident Reports</h2>
             <div className="divide-y divide-gray-200">
+              {reports.length === 0 && <p className="text-gray-500 py-4">No pending reports.</p>}
               {reports.map((report) => (
                 <div key={report.id} className="py-4 flex items-center justify-between">
                   <div>
                     <p className="font-medium text-gray-900">{report.title}</p>
-                    <p className="text-sm text-gray-500">{report.location}</p>
+                    <p className="text-sm text-gray-500">{report.province} {report.municipality && `- ${report.municipality}`}</p>
                   </div>
                   <div className="flex space-x-2">
                     <button 
@@ -169,11 +252,11 @@ export default function Admin() {
             <div className="flex flex-wrap gap-3">
               {categories.map((cat, idx) => (
                 <div key={idx} className="flex items-center space-x-1 px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm font-medium border border-gray-200">
-                  <span>{cat}</span>
+                  <span>{cat.name}</span>
                   <button 
-                    onClick={() => handleDeleteCategory(cat)}
+                    onClick={() => handleDeleteCategory(cat.name)}
                     className="ml-1 text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
-                    aria-label={`Delete ${cat}`}
+                    aria-label={`Delete ${cat.name}`}
                   >
                     <X size={14} />
                   </button>
@@ -201,10 +284,18 @@ export default function Admin() {
               </button>
             </form>
             <ul className="divide-y divide-gray-200">
-              {sources.map((source, idx) => (
-                <li key={idx} className="py-3 flex items-center justify-between text-gray-700">
-                  <span>{source}</span>
-                  <button className="text-red-500 hover:text-red-700 font-medium text-sm">Remove</button>
+              {sources.map((source) => (
+                <li key={source.id} className="py-3 flex items-center justify-between text-gray-700">
+                  <div className="flex flex-col">
+                    <span className="font-medium text-sm">{source.name}</span>
+                    <span className="text-xs text-gray-500">{source.url}</span>
+                  </div>
+                  <button 
+                    onClick={() => handleDeleteSource(source.id)}
+                    className="text-red-500 hover:text-red-700 font-medium text-sm"
+                  >
+                    Remove
+                  </button>
                 </li>
               ))}
             </ul>
