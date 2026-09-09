@@ -6,14 +6,16 @@ import NewsFeed from "@/components/NewsFeed";
 import ReportIncident from "@/components/ReportIncident";
 import IncidentsList from "@/components/IncidentsList";
 import logo from "@/assets/apc-logo.png";
+import Admin from "@/components/Admin";
 
-type Page = "dashboard" | "news" | "report" | "incidents";
+type Page = "dashboard" | "news" | "report" | "incidents" | "admin";
 
 const NAV_ITEMS: { id: Page; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "news", label: "News & Sentiment", icon: Newspaper },
   { id: "report", label: "Report Incident", icon: FileWarning },
-  { id: "incidents", label: "Incident Reports", icon: AlertTriangle }
+  { id: "incidents", label: "Incident Reports", icon: AlertTriangle },
+  { id: "admin", label: "Admin", icon: LayoutDashboard }
 ];
 
 export default function AuthenticatedApp() {
@@ -168,6 +170,7 @@ export default function AuthenticatedApp() {
           {page === "news" && <NewsFeed key={`news-${refreshKey}`} />}
           {page === "report" && <ReportIncident onSubmitted={triggerRefresh} />}
           {page === "incidents" && <IncidentsList key={`inc-${refreshKey}`} />}
+          {page === "admin" && <Admin key={`admin-${refreshKey}`} />}
         </div>
       </main>
 
