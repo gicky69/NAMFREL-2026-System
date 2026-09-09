@@ -130,7 +130,7 @@ export default function Dashboard() {
         <button
           onClick={handleScrape}
           disabled={scraping}
-          className="btn-primary flex items-center gap-2 text-sm self-start"
+          className="btn-primary font-bold flex items-center gap-2 text-sm self-start"
         >
           <RefreshCw className={`w-4 h-4 ${scraping ? "animate-spin" : ""}`} />
           {scraping ? "Scraping News..." : "Scrape Latest News"}

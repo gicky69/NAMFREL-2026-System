@@ -3,9 +3,9 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: #0f766e;
-  --color-primary-light: #14b8a6;
-  --color-primary-dark: #134e4a;
+  --color-primary: #190075;
+  --color-primary-light: #3b1aa8;
+  --color-primary-dark: #10004d;
   --color-accent: #f59e0b;
   --color-danger: #dc2626;
   --color-success: #16a34a;
@@ -33,7 +33,7 @@ body {
     @apply bg-white rounded-xl border border-slate-200 shadow-sm;
   }
   .btn-primary {
-    @apply bg-teal-700 hover:bg-teal-800 text-white font-medium px-5 py-2.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply bg-primary hover:bg-primary-dark text-white font-medium px-5 py-2.5 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
   }
   .btn-secondary {
     @apply bg-white hover:bg-slate-50 text-slate-700 font-medium px-5 py-2.5 rounded-lg border border-slate-300 transition-all duration-200 hover:shadow-sm active:scale-[0.98] disabled:opacity-50;
@@ -42,7 +42,7 @@ body {
     @apply bg-red-600 hover:bg-red-700 text-white font-medium px-5 py-2.5 rounded-lg transition-all duration-200 shadow-sm active:scale-[0.98];
   }
   .input-field {
-    @apply w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 focus:outline-none transition-all duration-200 bg-white;
+    @apply w-full rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-primary focus:ring-2 focus:ring-primary focus:outline-none transition-all duration-200 bg-white;
   }
   .badge {
     @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border;
@@ -79,6 +79,34 @@ body {
   animation: pulse-soft 2s ease-in-out infinite;
 }
 
+
+/* Header Nav Animation */
+
+.nav-item {
+  position: relative;
+}
+
+.nav-item::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background-color: white;
+  transform: translateX(-50%);
+  transition: width 0.3s ease;
+}
+
+.nav-item:hover::after {
+  width: 100%;
+}
+
+.nav-item.active::after {
+  width: 100%;
+}
+
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
@@ -94,3 +122,4 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
