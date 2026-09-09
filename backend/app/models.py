@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, String, Text, Float, Date, DateTime, ARRAY
+from sqlalchemy import Column, String, Text, Float, Date, DateTime, ARRAY, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
@@ -10,6 +10,54 @@ from app.db import Base
 # (IncidentsList.tsx, NewsFeed.tsx, ReportIncident.tsx, Dashboard.tsx).
 # Once you share @/types.ts, double check these against the real Supabase
 # schema (Table Editor in the Supabase dashboard is the source of truth).
+
+class Profile(Base):
+    __tablename__ = "profiles"
+
+    id = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4
+    )
+
+    firebase_uid = Column(
+        String,
+        unique=True,
+        nullable=False,
+        index=True
+    )
+
+    full_name = Column(String, nullable=True)
+
+    email = Column(
+        String,
+        unique=True,
+        nullable=True,
+        index=True
+    )
+
+    role = Column(
+        String,
+        nullable=False,
+        default="public"
+    )
+
+    is_verified = Column(
+        Boolean,
+        nullable=False,
+        default=False
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now()
+    )
 
 
 class Incident(Base):
