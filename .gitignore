@@ -21,5 +21,4 @@ dist-ssr
 *.sln
 *.sw?
 .env
-
 backend/firebase-service-account.json
