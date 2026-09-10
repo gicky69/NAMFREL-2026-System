@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Send, CheckCircle, FileWarning } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import type { IncidentType, Severity, NewIncident } from "@/types";
-import { BARMM_PROVINCES, INCIDENT_TYPES, SEVERITY_LEVELS } from "@/types";
 import { analyzeSentiment } from "@/lib/sentiment";
+import type { NewIncident } from "@/types";
+import { BARMM_PROVINCES, INCIDENT_TYPES, SEVERITY_LEVELS } from "@/types";
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 interface ReportIncidentProps {
   onSubmitted?: () => void;
@@ -45,8 +46,7 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
     setError(null);
 
     try {
-      const sentiment = analyzeSentiment(formData.description);
-      const insertData = {
+      const payload = {
         title: formData.title,
         description: formData.description,
         incident_type: formData.incident_type,
@@ -56,12 +56,21 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
         incident_date: formData.incident_date,
         reported_by: formData.reported_by || null,
         contact_info: formData.contact_info || null,
-        sentiment_score: sentiment.score,
-        sentiment_label: sentiment.label,
+        // sentiment_score / sentiment_label intentionally NOT sent -- the
+        // backend computes those itself from `description` in
+        // app/routers/incidents.py, so the frontend is never trusted for it.
       };
 
-      const { error: insertError } = await supabase.from("incidents").insert(insertData);
-      if (insertError) throw insertError;
+      const res = await fetch(`${API_URL}/api/incidents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        throw new Error(body?.detail || `Submission failed (${res.status})`);
+      }
 
       setSuccess(true);
       setFormData({

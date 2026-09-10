@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { Search, Filter, MapPin, Calendar, User, FileText } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import type { Incident, IncidentType, Severity, IncidentStatus } from "@/types";
 import { INCIDENT_TYPES, SEVERITY_LEVELS, INCIDENT_STATUSES } from "@/types";
 import { LoadingSpinner, ErrorState, EmptyState } from "@/components/States";
 import { SentimentBadge } from "@/components/SentimentBadge";
 import { IncidentTypeBadge, SeverityBadge, StatusBadge } from "@/components/Badges";
 import { formatDate } from "@/lib/sentiment";
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function IncidentsList() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -23,14 +24,22 @@ export default function IncidentsList() {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: err } = await supabase
-        .from("incidents")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (err) throw err;
-      setIncidents(data || []);
+      const res = await fetch(`${API_URL}/api/incidents`);
+      if (!res.ok) {
+        let detail= `Request failed with status ${res.status}`;
+        try {
+          const body = await res.json();
+          if (body?.detail) detail = body.detail;
+        } catch {
+
+ 
+        }
+        throw new Error(detail);
+      }
+      const data: Incident[] = await res.json();
+      setIncidents(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load incidents");
+      setError(err instanceof Error ? err.message: "Failed to load incidents");
     } finally {
       setLoading(false);
     }
@@ -38,7 +47,7 @@ export default function IncidentsList() {
 
   useEffect(() => {
     fetchIncidents();
-  }, [fetchIncidents]);
+  }, [fetchIncidents]); 
 
   const provinces = [...new Set(incidents.map((i) => i.province))];
 

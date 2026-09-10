@@ -1,8 +1,9 @@
-beautifulsoup4==4.15.0
 fastapi==0.141.1
-httpx==0.28.1
+uvicorn[standard]==0.34.0
+SQLAlchemy==2.0.35
+psycopg[binary]==3.2.3
 pydantic==2.13.5
 pydantic_settings==2.15.0
-SQLAlchemy==2.0.35
-transformers==5.16.1
-uvicorn[standard]==0.34.0
+python-dotenv==1.0.1
+httpx==0.28.1
+beautifulsoup4==4.15.0
