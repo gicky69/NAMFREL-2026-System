@@ -13,6 +13,34 @@ export type Severity = "low" | "medium" | "high" | "critical";
 
 export type IncidentStatus = "reported" | "verified" | "resolved";
 
+  
+export interface UserProfile {
+  id: string;
+  firebase_uid: string;
+  full_name: string | null;
+  email: string | null;
+  role: 'public' | 'personnel' | 'admin';
+  is_verified: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IncidentCategory {
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface NewsSource {
+  id: string;
+  name: string;
+  url: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface NewsArticle {
   id: string;
   title: string;
