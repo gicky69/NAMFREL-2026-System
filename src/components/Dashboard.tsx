@@ -1,13 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { TrendingUp, TrendingDown, Minus, Newspaper, AlertTriangle, Activity, MapPin, BarChart3, RefreshCw } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import type { NewsArticle, Incident, SentimentLabel } from "@/types";
 import { INCIDENT_TYPES, SEVERITY_LEVELS } from "@/types";
 import { LoadingSpinner, ErrorState, EmptyState } from "@/components/States";
 import { SentimentBadge } from "@/components/SentimentBadge";
 import { formatDate } from "@/lib/sentiment";
-
-
-const API_URL = import.meta.env.VITE_API_URL;
 
 interface DashboardData {
   articles: NewsArticle[];
@@ -25,30 +23,15 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [articleRes, incidentRes] = await Promise.all([
-        fetch(`${API_URL}/api/articles?limit=100`),
-        fetch(`${API_URL}/api/incidents?limit=100`)
+      const [articlesRes, incidentsRes] = await Promise.all([
+        supabase.from("news_articles").select("*").order("published_date", { ascending: false }).limit(100),
+        supabase.from("incidents").select("*").order("created_at", { ascending: false }).limit(100),
       ]);
 
-      for (const res of [articleRes, incidentRes]) {
-        if (!res.ok) {
-          let detail = `Request Failed with stats ${res.status}`;
-          try {
-            const body = await res.json();
-            if (body?.detail) detail = body.detail;
-          } catch {
+      if (articlesRes.error) throw articlesRes.error;
+      if (incidentsRes.error) throw incidentsRes.error;
 
-          }
-          throw new Error(detail);
-        }
-      }
-
-      const [articles, incidents] = await Promise.all([
-        articleRes.json(),
-        incidentRes.json(),
-      ]);
-
-      setData({ articles: articles || [], incidents: incidents || []});
+      setData({ articles: articlesRes.data || [], incidents: incidentsRes.data || [] });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load dashboard data");
     } finally {

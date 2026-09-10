@@ -35,6 +35,7 @@ class IncidentOut(BaseModel):
     sentiment_label: str
     created_at: datetime.datetime
 
+
 class NewsArticleOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -48,7 +49,6 @@ class NewsArticleOut(BaseModel):
     keywords: Optional[list[str]] = None
     sentiment_score: float
     sentiment_label: str
-    scraped_at: Optional[datetime.datetime] = None
 
 
 class ScrapeResult(BaseModel):
