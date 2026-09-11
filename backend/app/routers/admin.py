@@ -6,17 +6,16 @@ from app.db import get_db
 from app.models import Profile
 from app.services.firebase import verify_firebase_token
 
-
+# 1. Define the router EXACTLY ONCE at the top
 router = APIRouter(
     prefix="/admin",
     tags=["Users"]
 )
 
-
 class ChangeRoleRequest(BaseModel):
     role: str
 
-
+# 2. Your PATCH Endpoint
 @router.patch("/profiles/{user_id}/role")
 def change_role(
     user_id: str,
@@ -24,22 +23,15 @@ def change_role(
     authorization: str | None = Header(default=None),
     db: Session = Depends(get_db)
 ):
-
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=401,
-            detail="Unauthorized"
-        )
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     token = authorization.replace("Bearer ", "", 1)
 
     try:
         decoded_token = verify_firebase_token(token)
     except Exception:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid Firebase token"
-        )
+        raise HTTPException(status_code=401, detail="Invalid Firebase token")
 
     firebase_uid = decoded_token["uid"]
 
@@ -51,17 +43,11 @@ def change_role(
     )
 
     if not requester:
-        raise HTTPException(
-            status_code=403,
-            detail="Profile not found"
-        )
+        raise HTTPException(status_code=403, detail="Profile not found")
 
     # Only admin can change roles
     if requester.role != "admin":
-        raise HTTPException(
-            status_code=403,
-            detail="You are not authorized to change roles"
-        )
+        raise HTTPException(status_code=403, detail="You are not authorized to change roles")
 
     # Find the user selected in User Management
     user = (
@@ -71,10 +57,7 @@ def change_role(
     )
 
     if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="User not found"
-        )
+        raise HTTPException(status_code=404, detail="User not found")
 
     # Change the selected user's role
     user.role = payload.role
@@ -88,33 +71,15 @@ def change_role(
         "role": user.role
     }
 
-
-from fastapi import APIRouter, Depends, HTTPException, Header
-from sqlalchemy.orm import Session
-
-from app.db import get_db
-from app.models import Profile
-from app.services.firebase import verify_firebase_token
-
-
-router = APIRouter(
-    prefix="/admin",
-    tags=["Users"]
-)
-
-
+# 3. Your GET Endpoint
 @router.get("/profiles")
 def get_users(
     authorization: str | None = Header(default=None),
     db: Session = Depends(get_db)
 ):
-
     # Check Authorization header
     if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=401,
-            detail="Unauthorized"
-        )
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     token = authorization.replace("Bearer ", "", 1)
 
@@ -122,10 +87,7 @@ def get_users(
     try:
         decoded_token = verify_firebase_token(token)
     except Exception:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired Firebase token"
-        )
+        raise HTTPException(status_code=401, detail="Invalid or expired Firebase token")
 
     firebase_uid = decoded_token["uid"]
 
@@ -137,17 +99,11 @@ def get_users(
     )
 
     if not requester:
-        raise HTTPException(
-            status_code=403,
-            detail="Profile not found"
-        )
+        raise HTTPException(status_code=403, detail="Profile not found")
 
     # Only admins can access the user list
     if requester.role != "admin":
-        raise HTTPException(
-            status_code=403,
-            detail="You are not authorized to view users"
-        )
+        raise HTTPException(status_code=403, detail="You are not authorized to view users")
 
     # Get all users
     users = (
