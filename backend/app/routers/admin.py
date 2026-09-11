@@ -12,7 +12,6 @@ router = APIRouter(
     tags=["Users"]
 )
 
-
 class ChangeRoleRequest(BaseModel):
     role: str
 
@@ -87,21 +86,6 @@ def change_role(
         "id": str(user.id),
         "role": user.role
     }
-
-
-from fastapi import APIRouter, Depends, HTTPException, Header
-from sqlalchemy.orm import Session
-
-from app.db import get_db
-from app.models import Profile
-from app.services.firebase import verify_firebase_token
-
-
-router = APIRouter(
-    prefix="/admin",
-    tags=["Users"]
-)
-
 
 @router.get("/profiles")
 def get_users(
