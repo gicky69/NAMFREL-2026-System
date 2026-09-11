@@ -241,7 +241,7 @@ export default function Admin() {
                     <p className="text-sm text-gray-500">Current Role: <span className="font-semibold">{user.role}</span></p>
                   </div>
                   <div className="flex space-x-2">
-                    {/* NEW: Make Admin Button */}
+                    {/* NEW: Make Admin But ton */}
                     <button 
                       onClick={() => handleVerifyUser(user.id, 'admin')}
                       className="px-4 py-2 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
