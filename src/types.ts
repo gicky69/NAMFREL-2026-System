@@ -1,14 +1,5 @@
 export type SentimentLabel = "positive" | "negative" | "neutral";
 
-export type IncidentType =
-  | "violence"
-  | "vote_buying"
-  | "intimidation"
-  | "fraud"
-  | "infrastructure"
-  | "displacement"
-  | "other";
-
 export type Severity = "low" | "medium" | "high" | "critical";
 
 export type IncidentStatus = "reported" | "verified" | "resolved";

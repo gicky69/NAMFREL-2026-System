@@ -4,6 +4,9 @@ import { auth } from "@/lib/firebase";
 import { supabase } from '@/lib/supabase';
 import { UserProfile, Incident, IncidentCategory, NewsSource } from '@/types';
 
+import { createPortal } from "react-dom";
+
+
 type TabType = 'users' | 'reports' | 'categories' | 'sources';
 
 export default function Admin() {
@@ -23,10 +26,8 @@ export default function Admin() {
   const [newCategory, setNewCategory] = useState('');
   const [newSource, setNewSource] = useState('');
 
-  // Success message states
-  const [successMessage, setSuccessMessage] = useState("");
-  const [showSuccessPage, setShowSuccessPage] = useState(false);
-  
+  const [statusMessage, setStatusMessage] = useState("");
+  const [showStatusPage, setShowStatusPage] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -69,8 +70,17 @@ export default function Admin() {
   }, [API_URL]);
 
   const fetchCategories = async () => {
-    const { data, error } = await supabase.from('incident_categories').select('*');
-    if (!error && data) setCategories(data);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const response = await fetch(`${API_URL}/admin/categories`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Failed to fetch categories");
+      const data = await response.json();
+      setCategories(data);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
   };
 
   const fetchSources = async () => {
@@ -92,7 +102,16 @@ export default function Admin() {
         },
         body: JSON.stringify({ role: newRole, is_verified: true }),
       });
-      if (!response.ok) throw new Error("Failed to update user");
+      if (!response.ok) {
+        setStatusMessage(`Failed to update user (${response.status})`);
+        setShowStatusPage(true);
+
+        setTimeout(() => {
+          setShowStatusPage(false);
+        }, 3000);
+
+        throw new Error("Failed to update user");
+      }
 
       const updatedUser = await response.json();
       setUsers((currentUsers) =>
@@ -102,12 +121,12 @@ export default function Admin() {
       );
 
       // Show success message
-      setSuccessMessage(`User successfully updated to ${updatedUser.role}.`);
-      setShowSuccessPage(true);
+      setStatusMessage(`User successfully updated to ${updatedUser.role}.`);
+      setShowStatusPage(true);
 
       // Automatically hide after 3 seconds
       setTimeout(() => {
-        setShowSuccessPage(false);
+        setShowStatusPage(false);
       }, 3000);
 
     } catch (error) {
@@ -140,44 +159,103 @@ export default function Admin() {
     }
   };
 
+  // #region Incident Categories tab handlers
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategory) return;
 
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const response = await fetch(`${API_URL}/admin/categories`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ name: newCategory }),
+      });
+      if (!response.ok) {
+        setStatusMessage(`Failed to add category (${response.status})`);
+        setShowStatusPage(true);
+        setTimeout(() => {
+          setShowStatusPage(false);
+        }, 3000);
+        throw new Error("Failed to add category");
+      } 
+
+      const addedCategory = await response.json();
+      setCategories([...categories, addedCategory]);
+      setNewCategory('');
+
+      setStatusMessage(`"${addedCategory.name}" was successfully added in the list.`);
+      setShowStatusPage(true);
+
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
+
+
+    } catch (error) {
+      console.error("Error adding category:", error);
+    }
+  };
+
+  const handleDeleteCategory = async (categoryName: string) => {
+    try {
+      const token = await auth.currentUser?.getIdToken();
+
+      const response = await fetch(
+        `${API_URL}/admin/categories/${encodeURIComponent(categoryName)}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to delete category");
+      }
+
+      // Remove the deleted category from the UI
+      setCategories((currentCategories) =>
+        currentCategories.filter(
+          (category) => category.name !== categoryName
+        )
+      );
+      
+
+      setStatusMessage(`"${categoryName}" was successfully deleted.`);
+      setShowStatusPage(true);
+
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
+
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      alert("Failed to delete category.");
+    }
+  };
+  // #endregion
+
+  // #region News Sources tab handlers
+  const handleAddSource = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSource) return;
+
     const { data, error } = await supabase
-      .from('incident_categories')
-      .insert([{ name: newCategory }])
+      .from('news_sources')
+      .insert([{ name: new URL(newSource).hostname, url: newSource }])
       .select();
 
     if (!error && data) {
-      setCategories([...categories, data[0]]);
-      setNewCategory('');
+      setSources([...sources, data[0]]);
+      setNewSource('');
     } else {
-      console.error('Error adding category:', error);
+      console.error('Error adding source:', error);
     }
-  };
-
-  const handleDeleteCategory = async (categoryToDelete: string) => {
-    const { error } = await supabase
-      .from('incident_categories')
-      .delete()
-      .eq('name', categoryToDelete);
-
-    if (!error) {
-      setCategories(categories.filter((cat) => cat.name !== categoryToDelete));
-    } else {
-      console.error('Error deleting category:', error);
-    }
-  };
-
-  const handleAddSource = async (e: React.FormEvent) => {
-    e.defaultPrevented();
-    if (!newSource) return;
-
-    const res = await fetch(`${API_URL}/api/newSource`, {
-      method: "POST",
-      
-    });
   };
 
   const handleDeleteSource = async (id: string) => {
@@ -193,7 +271,11 @@ export default function Admin() {
     }
   };
 
+  // #endregion
+
   return (
+
+    <>
     
     <div className="max-w-7xl mx-auto p-6">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Admin Dashboard</h1>
@@ -222,7 +304,7 @@ export default function Admin() {
 
       <div className="bg-white rounded-lg shadow p-6 border border-gray-100">
         
-{/* USERS TAB */}
+      {/* USERS TAB */}
         {activeTab === 'users' && (
           <div>
             <h2 className="text-xl font-semibold mb-4">User Management</h2>
@@ -245,9 +327,8 @@ export default function Admin() {
                     
                     <button 
                       onClick={() => handleVerifyUser(user.id, 'personnel')}
-                      className="px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={user.role === 'personnel'}
-                      className={`px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm font-medium transition ${
+                      className={`px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
                       user.role === 'personnel'
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
@@ -374,48 +455,38 @@ export default function Admin() {
         )}
 
       </div>
+    </div>
 
-        {showSuccessPage && (
-        <div className="fixed inset-0 z-[9999] flex items-start justify-center bg-white/70 pt-10 px-6">
+      {showStatusPage &&
+      createPortal(
+        <div className="fixed bottom-6 right-6 z-[999999]">
+          <div className="flex items-center gap-4 rounded-xl border border-green-200 bg-white px-5 py-4 shadow-2xl min-w-[400px]">
 
-          <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-2xl border border-slate-200 animate-fade-in">
-
-            {/* Success Icon */}
-            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-              <svg
-                className="h-8 w-8 text-green-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-green-100">
+              <Check className="h-6 w-6 text-green-600" />
             </div>
 
-            <h1 className="text-xl font-bold text-slate-900">
-              Successfully Updated!
-            </h1>
+            <div className="flex-1">
+              <h3 className="font-semibold text-slate-900">
+                Success!
+              </h3>
 
-            <p className="mt-2 text-sm text-slate-500">
-              {successMessage}
-            </p>
+              <p className="text-sm text-slate-500">
+                {statusMessage}
+              </p>
+            </div>
 
             <button
-              onClick={() => setShowSuccessPage(false)}
-              className="mt-6 w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+              onClick={() => setShowStatusPage(false)}
+              className="text-slate-400 hover:text-slate-700"
             >
-              Continue
+              <X className="h-5 w-5" />
             </button>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
-
-    </div>
+    </>
   );
 }

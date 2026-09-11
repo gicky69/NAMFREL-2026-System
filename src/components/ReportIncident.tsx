@@ -1,14 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Send, CheckCircle, FileWarning } from "lucide-react";
 import { analyzeSentiment } from "@/lib/sentiment";
 import type { NewIncident } from "@/types";
-import { BARMM_PROVINCES, INCIDENT_TYPES, SEVERITY_LEVELS } from "@/types";
+import { BARMM_PROVINCES, SEVERITY_LEVELS } from "@/types";
+
+import { auth } from "@/lib/firebase";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 interface ReportIncidentProps {
   onSubmitted?: () => void;
 }
+
 
 export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
   const [formData, setFormData] = useState<NewIncident>({
@@ -22,6 +25,15 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
     reported_by: "",
     contact_info: "",
   });
+
+  type IncidentCategory = {
+    name: string;
+    description: string | null;
+  };
+  const [incidentTypes, setIncidentTypes] = useState<IncidentCategory[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +105,45 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
       setSubmitting(false);
     }
   };
+  
 
+  useEffect(() => {
+    const fetchIncidentTypes = async () => {
+      try {
+        const user = auth.currentUser;
+
+        if (!user) {
+          return;
+        }
+
+        const token = await user.getIdToken();
+
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/admin/categories`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch incident categories");
+        }
+
+        const data = await response.json();
+
+        setIncidentTypes(data);
+      } catch (error) {
+        console.error("Error fetching incident types:", error);
+      } finally {
+        setLoadingCategories(false);
+      }
+    };
+
+    fetchIncidentTypes();
+  }, []);
+  
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
@@ -182,9 +232,19 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
               onChange={(e) => handleChange("incident_type", e.target.value)}
               className="input-field cursor-pointer"
             >
-              {INCIDENT_TYPES.map((type) => (
-                <option key={type.value} value={type.value}>{type.label}</option>
+              <option value="">
+                {loadingCategories
+                  ? "Loading incident types..."
+                  : "Select Incident Type"}
+              </option>
+
+              {incidentTypes.map((type) => (
+                <option key={type.name} value={type.name}>
+                  {type.name}
+                </option>
               ))}
+
+    
             </select>
           </div>
           <div>

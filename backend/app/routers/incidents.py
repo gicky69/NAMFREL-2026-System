@@ -29,3 +29,22 @@ def create_incident(payload: IncidentCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(incident)
     return incident
+
+# incident category list
+@router.get("/categories", response_model=list[str])
+def list_incident_categories(db: Session = Depends(get_db)):
+    categories = (
+        db.query(IncidentCategory)
+        .order_by(IncidentCategory.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            "name": category.name,
+            "description": category.description,
+            "created_at": category.created_at
+        }
+        
+        for category in categories
+    ]
