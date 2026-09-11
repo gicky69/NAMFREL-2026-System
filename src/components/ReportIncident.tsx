@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Send, CheckCircle, FileWarning } from "lucide-react";
 import { analyzeSentiment } from "@/lib/sentiment";
 import type { NewIncident } from "@/types";

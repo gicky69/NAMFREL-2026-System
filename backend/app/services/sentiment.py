@@ -22,13 +22,11 @@ NEGATIVE_WORDS = [
 
 MULTI_WORD_NEGATIVE = ["vote buying", "vote-buying"]
 
-
 def load_model():
     # Placeholder — swap this out for a real classifier later
     # (e.g. a HuggingFace sentiment pipeline or a small fine-tuned model)
     return None
-
-
+    
 def analyze_sentiment(text: str) -> tuple[float, str]:
     lower = text.lower()
     words = re.split(r"[\s,.;:!?'\"\-—–()]+", lower)

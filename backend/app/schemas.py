@@ -34,6 +34,9 @@ class IncidentOut(BaseModel):
     sentiment_score: float
     sentiment_label: str
     created_at: datetime.datetime
+    
+class IncidentStatusUpdate(BaseModel):
+    status: str
 
 
 class NewsArticleOut(BaseModel):
@@ -50,6 +53,19 @@ class NewsArticleOut(BaseModel):
     sentiment_score: float
     sentiment_label: str
 
+class NewsSourceCreate(BaseModel):
+    name: str
+    url: str
+
+class NewsSourceOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id: uuid.UUID
+    name: str
+    url: str
+    is_active: bool
+    created_at: datetime.datetime
+    updated_at: datetime.datetime
 
 class ScrapeResult(BaseModel):
     scraped: int

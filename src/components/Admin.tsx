@@ -3,6 +3,7 @@ import { Users, AlertTriangle, Tags, Globe, Check, X, Plus } from 'lucide-react'
 import { auth } from "@/lib/firebase";
 import { supabase } from '@/lib/supabase';
 import { UserProfile, Incident, IncidentCategory, NewsSource } from '@/types';
+import { getIdToken } from 'firebase/auth';
 
 type TabType = 'users' | 'reports' | 'categories' | 'sources';
 
@@ -19,6 +20,8 @@ export default function Admin() {
   const [reports, setReports] = useState<Incident[]>([]);
   const [categories, setCategories] = useState<IncidentCategory[]>([]);
   const [sources, setSources] = useState<NewsSource[]>([]);
+  const [newSourceName, setNewSourceName] = useState("");
+  const [newSourceURL, setNewSourceURL] = useState("");
 
   const [newCategory, setNewCategory] = useState('');
   const [newSource, setNewSource] = useState('');
@@ -73,10 +76,10 @@ export default function Admin() {
     if (!error && data) setCategories(data);
   };
 
-  const fetchSources = async () => {
-    const { data, error } = await supabase.from('news_sources').select('*');
-    if (!error && data) setSources(data);
-  };
+  const fetchSources = useCallback(async () => {
+    const res = await fetch(`${API_URL}/api/sources`);
+    if (res.ok) setSources(await res.json());
+  }, []);
 
   const handleVerifyUser = async (id: string, newRole: string) => {
     try {
@@ -122,9 +125,12 @@ export default function Admin() {
   const handleVerifyReport = async (id: string, isVerified: boolean) => {
     const newStatus = isVerified ? 'verified' : 'rejected';
     try {
+      const token = await auth.currentUser?.getIdToken();
       const res = await fetch(`${API_URL}/api/incidents/${id}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, 
+         },
         body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) throw new Error(`Failed to update report (${res.status})`);
@@ -171,26 +177,35 @@ export default function Admin() {
   };
 
   const handleAddSource = async (e: React.FormEvent) => {
-    e.defaultPrevented();
-    if (!newSource) return;
-
-    const res = await fetch(`${API_URL}/api/newSource`, {
+    e.preventDefault();
+    if (!newSourceName || !newSourceURL) return;
+    const token = await auth.currentUser?.getIdToken();
+    const rest = await fetch(`${API_URL}/api/sources`, {
       method: "POST",
-      
+      headers: {
+        "Content-type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ name: newSourceName, url: newSourceURL}),
     });
+    if (!rest.ok) {
+      console.error("Failed to add source", rest.status);
+      return
+    }
+
+    setNewSourceName("");
+    setNewSourceURL("");
+    await fetchSources();
   };
 
   const handleDeleteSource = async (id: string) => {
-    const { error } = await supabase
-      .from('news_sources')
-      .delete()
-      .eq('id', id);
+    const token = await auth.currentUser?.getIdToken();
+    const res = await fetch(`${API_URL}/api/sources/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}`},
+    });
 
-    if (!error) {
-      setSources(sources.filter((source) => source.id !== id));
-    } else {
-      console.error('Error deleting source:', error);
-    }
+    if (res.ok) await fetchSources();
   };
 
   return (
@@ -245,13 +260,12 @@ export default function Admin() {
                     
                     <button 
                       onClick={() => handleVerifyUser(user.id, 'personnel')}
-                      className="px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={user.role === 'personnel'}
-                      className={`px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm font-medium transition ${
-                      user.role === 'personnel'
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                    }`}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+                        user.role === 'personnel'
+                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                      }`}
                     >
                       Make Personnel
                     </button>
@@ -342,18 +356,25 @@ export default function Admin() {
           <div>
             <h2 className="text-xl font-semibold mb-4">Scraper News Sources</h2>
             <form onSubmit={handleAddSource} className="flex space-x-4 mb-6">
-              <input
-                type="url"
-                value={newSource}
-                onChange={(e) => setNewSource(e.target.value)}
-                placeholder="https://example-news.com/feed"
-                className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
-              />
-              <button type="submit" className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                <Plus size={20} />
-                <span>Add Source</span>
-              </button>
-            </form>
+            <input
+              type="text"
+              value={newSourceName}
+              onChange={(e) => setNewSourceName(e.target.value)}
+              placeholder="Source name"
+              className="w-1/3 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
+            />
+            <input
+              type="url"
+              value={newSourceURL}
+              onChange={(e) => setNewSourceURL(e.target.value)}
+              placeholder="https://example-news.com/feed"
+              className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
+            />
+            <button type="submit" className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+              <Plus size={20} />
+              <span>Add Source</span>
+            </button>
+          </form>
             <ul className="divide-y divide-gray-200">
               {sources.map((source) => (
                 <li key={source.id} className="py-3 flex items-center justify-between text-gray-700">

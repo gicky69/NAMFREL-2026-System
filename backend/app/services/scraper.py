@@ -18,7 +18,7 @@ import feedparser
 from bs4 import BeautifulSoup
 from sqlalchemy.orm import Session
 
-from app.models import NewsArticle
+from app.models import NewsArticle, NewsSource
 from app.services.sentiment import analyze_sentiment
 
 # Base region/institution terms (from the original edge function's list) --
@@ -95,13 +95,7 @@ REQUEST_HEADERS = {
 #     confirm with `python scraper.py --debug` that it actually returns
 #     RSS entries before relying on it; if it 404s or returns 0 entries,
 #     drop this line and fall back to increasing scrape frequency instead.
-SOURCES = [
-    {"name": "Rappler", "feed_url": "https://www.rappler.com/feed"},
-    {"name": "Rappler (Elections)", "feed_url": "https://www.rappler.com/philippines/elections/feed/"},
-    {"name": "Inquirer.net", "feed_url": "https://www.inquirer.net/fullfeed"},
-    {"name": "PhilStar.com", "feed_url": "https://www.philstar.com/rss/headlines"},
-    {"name": "GMA News", "feed_url": "https://data.gmanews.tv/gno/rss/news/feed.xml"},  # replacement for 404'd gmanetwork.com URL
-    {"name": "Luwaran", "feed_url": "https://www.luwaran.com/news/category/16"},
+HTML_SOURCES = [
     {
         "name": "Luwaran",
         "is_html": True,
@@ -117,6 +111,10 @@ SOURCES = [
         "date_format": None,
     },
 ]
+
+def _get_db_sources(db: Session) -> list[dict]:
+    rows = db.query(NewsSource).filter(NewsSource.is_active.is_(True)).all()
+    return [{"name": row.name, "feed_url": row.url} for row in rows]
 
 
 def _is_relevant(title: str, summary: str = "") -> bool:
@@ -281,9 +279,10 @@ def _scrape_html_source(client: httpx.Client, source: dict, db: Session) -> tupl
 
 def scrape_all_sources(db: Session) -> tuple[int, int, list[str]]:
     scraped, skipped, errors = 0, 0, []
+    sources = _get_db_sources(db) + HTML_SOURCES
 
     with httpx.Client(timeout=15.0, follow_redirects=True, headers=REQUEST_HEADERS) as client:
-        for source in SOURCES:
+        for source in sources:
             try:
                 if source.get("is_html"):
                     s, sk = _scrape_html_source(client, source, db)
@@ -292,8 +291,8 @@ def scrape_all_sources(db: Session) -> tuple[int, int, list[str]]:
                 scraped += s
                 skipped += sk
                 db.commit()
-            except Exception as exc:  # noqa: BLE001 - surface per-source errors, keep going
-                db.rollback()  # clear the failed transaction so later sources aren't blocked
+            except Exception as exc:  # noqa: BLE001
+                db.rollback()
                 errors.append(f"{source['name']}: {exc}")
 
     return scraped, skipped, errors
@@ -309,53 +308,60 @@ def _check_feeds(debug: bool = False):
     showing as election coverage?" without guessing:
         python scraper.py --debug
     """
-    with httpx.Client(timeout=15.0, follow_redirects=True, headers=REQUEST_HEADERS) as client:
-        for source in SOURCES:
-            name = source["name"]
-            try:
-                if source.get("is_html"):
-                    resp = client.get(source["listing_url"])
-                    soup = BeautifulSoup(resp.text, "html.parser")
-                    sel = source["selectors"]
-                    base_url = source.get("base_url", source["listing_url"])
-                    blocks = soup.select(sel["article"])
-                    status = "OK" if blocks else "0 MATCHES -- CHECK SELECTORS"
-                    print(f"{name:20s} HTTP {resp.status_code}  {len(blocks):3d} entries  {status}")
-                    entries = []
-                    for block in blocks:
-                        title_el = block.select_one(sel["title"])
-                        title = title_el.get_text(strip=True) if title_el else "(no title)"
-                        entries.append(title)
-                    if entries:
-                        print(f"{'':20s} e.g. {entries[0]!r}")
-                    if debug:
+    from app.db import SessionLocal
+    
+    db = SessionLocal()
+    
+    try:
+        sources: _get_db_sources(db) + HTML_SOUCRES
+        with httpx.Client(timeout=15.0, follow_redirects=True, headers=REQUEST_HEADERS) as client:
+            for source in SOURCES:
+                name = source["name"]
+                try:
+                    if source.get("is_html"):
+                        resp = client.get(source["listing_url"])
+                        soup = BeautifulSoup(resp.text, "html.parser")
+                        sel = source["selectors"]
+                        base_url = source.get("base_url", source["listing_url"])
+                        blocks = soup.select(sel["article"])
+                        status = "OK" if blocks else "0 MATCHES -- CHECK SELECTORS"
+                        print(f"{name:20s} HTTP {resp.status_code}  {len(blocks):3d} entries  {status}")
+                        entries = []
                         for block in blocks:
                             title_el = block.select_one(sel["title"])
-                            summary_el = block.select_one(sel["summary"]) if sel.get("summary") else None
-                            title = title_el.get_text(strip=True) if title_el else ""
-                            summary = summary_el.get_text(strip=True) if summary_el else ""
-                            relevant = _is_relevant(title, summary)
-                            election = _is_election_related(title, summary)
-                            mark = "ELECTION" if election else ("KEEP" if relevant else "skip")
-                            print(f"    [{mark}] {title!r}")
-                else:
-                    resp = client.get(source["feed_url"])
-                    feed = feedparser.parse(resp.content)
-                    status = "OK" if feed.entries else "EMPTY/PARSE FAILED"
-                    print(f"{name:20s} HTTP {resp.status_code}  {len(feed.entries):3d} entries  {status}")
-                    if feed.entries:
-                        print(f"{'':20s} e.g. {feed.entries[0].get('title', '(no title)')!r}")
-                    if debug:
-                        for entry in feed.entries:
-                            title = getattr(entry, "title", "")
-                            summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
-                            relevant = _is_relevant(title, summary)
-                            election = _is_election_related(title, summary)
-                            mark = "ELECTION" if election else ("KEEP" if relevant else "skip")
-                            print(f"    [{mark}] {title!r}")
-            except Exception as exc:  # noqa: BLE001
-                print(f"{name:20s} FAILED: {exc}")
-
+                            title = title_el.get_text(strip=True) if title_el else "(no title)"
+                            entries.append(title)
+                        if entries:
+                            print(f"{'':20s} e.g. {entries[0]!r}")
+                        if debug:
+                            for block in blocks:
+                                title_el = block.select_one(sel["title"])
+                                summary_el = block.select_one(sel["summary"]) if sel.get("summary") else None
+                                title = title_el.get_text(strip=True) if title_el else ""
+                                summary = summary_el.get_text(strip=True) if summary_el else ""
+                                relevant = _is_relevant(title, summary)
+                                election = _is_election_related(title, summary)
+                                mark = "ELECTION" if election else ("KEEP" if relevant else "skip")
+                                print(f"    [{mark}] {title!r}")
+                    else:
+                        resp = client.get(source["feed_url"])
+                        feed = feedparser.parse(resp.content)
+                        status = "OK" if feed.entries else "EMPTY/PARSE FAILED"
+                        print(f"{name:20s} HTTP {resp.status_code}  {len(feed.entries):3d} entries  {status}")
+                        if feed.entries:
+                            print(f"{'':20s} e.g. {feed.entries[0].get('title', '(no title)')!r}")
+                        if debug:
+                            for entry in feed.entries:
+                                title = getattr(entry, "title", "")
+                                summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
+                                relevant = _is_relevant(title, summary)
+                                election = _is_election_related(title, summary)
+                                mark = "ELECTION" if election else ("KEEP" if relevant else "skip")
+                                print(f"    [{mark}] {title!r}")
+                except Exception as exc:  # noqa: BLE001
+                    print(f"{name:20s} FAILED: {exc}")
+    finally:
+        db.close()
 
 if __name__ == "__main__":
     import sys

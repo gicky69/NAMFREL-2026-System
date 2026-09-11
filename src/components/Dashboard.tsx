@@ -27,7 +27,7 @@ export default function Dashboard() {
     try {
       const [articleRes, incidentRes] = await Promise.all([
         fetch(`${API_URL}/api/articles?limit=100`),
-        fetch(`${API_URL}/api/incidents?limit=100`)
+        fetch(`${API_URL}/api/incidents?limit=100&status=verified`)
       ]);
 
       for (const res of [articleRes, incidentRes]) {
