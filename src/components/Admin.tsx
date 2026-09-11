@@ -20,6 +20,11 @@ export default function Admin() {
   const [newCategory, setNewCategory] = useState('');
   const [newSource, setNewSource] = useState('');
 
+  // Success message states
+  const [successMessage, setSuccessMessage] = useState("");
+  const [showSuccessPage, setShowSuccessPage] = useState(false);
+  
+
   // --- 1. Data Fetching on Mount ---
   useEffect(() => {
     fetchUsers();
@@ -120,6 +125,15 @@ export default function Admin() {
         )
       );
 
+      // Show success message
+      setSuccessMessage(`User successfully updated to ${updatedUser.role}.`);
+      setShowSuccessPage(true);
+
+      // Automatically hide after 3 seconds
+      setTimeout(() => {
+        setShowSuccessPage(false);
+      }, 3000);
+
     } catch (error) {
       console.error("Error updating user:", error);
       alert("Failed to update user.");
@@ -205,6 +219,7 @@ export default function Admin() {
   };
 
   return (
+    
     <div className="max-w-7xl mx-auto p-6">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Admin Dashboard</h1>
 
@@ -248,14 +263,22 @@ export default function Admin() {
                   <div className="flex space-x-2">
                     <button 
                       onClick={() => handleVerifyUser(user.id, 'personnel')}
-                      className="px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm font-medium"
                       disabled={user.role === 'personnel'}
+                      className={`px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm font-medium transition ${
+                      user.role === 'personnel'
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                    }`}
                     >
                       Make Personnel
                     </button>
                     <button 
                       onClick={() => handleVerifyUser(user.id, 'public')}
-                      className="px-4 py-2 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium"
+                      className={`px-4 py-2 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium transition ${
+                        user.role === 'public'
+                          ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                          : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                      }`}
                       disabled={user.role === 'public'}
                     >
                       Make Public
@@ -372,6 +395,48 @@ export default function Admin() {
         )}
 
       </div>
+
+        {showSuccessPage && (
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center bg-white/70 pt-10 px-6">
+
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-2xl border border-slate-200 animate-fade-in">
+
+            {/* Success Icon */}
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+              <svg
+                className="h-8 w-8 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+
+            <h1 className="text-xl font-bold text-slate-900">
+              Successfully Updated!
+            </h1>
+
+            <p className="mt-2 text-sm text-slate-500">
+              {successMessage}
+            </p>
+
+            <button
+              onClick={() => setShowSuccessPage(false)}
+              className="mt-6 w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+            >
+              Continue
+            </button>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
