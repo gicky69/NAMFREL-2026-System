@@ -341,10 +341,22 @@ export default function Dashboard() {
                 <div key={article.id} className="flex items-start gap-3 pb-3 border-b border-slate-100 last:border-0">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-800 line-clamp-2">{article.title}</p>
+                    {article.summary && (
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">{article.summary}</p>
+                    )}
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                       <span className="text-xs text-slate-400">{article.source}</span>
                       <span className="text-xs text-slate-300">•</span>
                       <span className="text-xs text-slate-400">{formatDate(article.published_date)}</span>
+                      {article.province && (
+                        <>
+                          <span className="text-xs text-slate-300">•</span>
+                          <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                            <MapPin className="w-3 h-3" />
+                            {article.province}
+                          </span>
+                        </>
+                      )}
                       <SentimentBadge label={article.sentiment_label} />
                     </div>
                   </div>

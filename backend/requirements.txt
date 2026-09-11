@@ -8,3 +8,5 @@ transformers==5.16.1
 uvicorn[standard]==0.34.0
 psycopg2-binary
 firebase-admin
+httpx
+feedparser
