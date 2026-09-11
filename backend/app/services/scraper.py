@@ -26,7 +26,7 @@ from app.services.sentiment import analyze_sentiment
 BARMM_KEYWORDS_BASE = [
     "barmm", "bangsamoro", "maguindanao", "lanao del sur", "sulu",
     "tawi-tawi", "basilan", "marawi", "cotabato", "muslim mindanao",
-    "bangsamoro election", "barmm election", "parliament", "bta",
+    "bangsamoro election", "barmm election", "parliament",
     "bangsamoro transition authority", "regional governor",
 ]
 
@@ -100,9 +100,7 @@ SOURCES = [
     {"name": "Rappler (Elections)", "feed_url": "https://www.rappler.com/philippines/elections/feed/"},
     {"name": "Inquirer.net", "feed_url": "https://www.inquirer.net/fullfeed"},
     {"name": "PhilStar.com", "feed_url": "https://www.philstar.com/rss/headlines"},
-    {"name": "Manila Bulletin", "feed_url": "https://mb.com.ph/feed/"},
     {"name": "GMA News", "feed_url": "https://data.gmanews.tv/gno/rss/news/feed.xml"},  # replacement for 404'd gmanetwork.com URL
-    {"name": "ABS-CBN News", "feed_url": "https://news.abs-cbn.com/feed"},
     {"name": "Luwaran", "feed_url": "https://www.luwaran.com/news/category/16"},
     {
         "name": "Luwaran",
@@ -118,43 +116,6 @@ SOURCES = [
         },
         "date_format": None,
     },
-
-    # --- HTML sources (no RSS feed available) ---
-    # Luwaran (MILF Committee on Information) has no /feed/ -- confirmed by
-    # inspecting the page directly: no RSS <link> autodiscovery tag, and
-    # the URL structure (/news/category/16, /news/article/<id>/<slug>) is
-    # a custom CMS, not WordPress. Category 16 ("Central Mindanao") is
-    # where nearly all the BARMM/election coverage lives (2,161 articles
-    # vs. single/double digits in the other regional categories).
-    #
-    # LEFT DISABLED (commented out) because the selectors below are
-    # placeholders, not verified against the real page -- I don't have
-    # Luwaran's actual HTML (my fetch tool only returns markdown-extracted
-    # text, and luwaran.com is outside this sandbox's network allowlist).
-    # Pull the real selectors from browser devtools, update the four
-    # values below, then uncomment. Test with `python scraper.py --debug`
-    # first -- a wrong selector matches nothing and silently returns 0
-    # entries rather than an error, so a 0-entry result here means "check
-    # the selectors" before it means "the page is actually empty".
-    #
-    # {
-    #     "name": "Luwaran",
-    #     "is_html": True,
-    #     "listing_url": "https://www.luwaran.com/news/category/16",
-    #     "base_url": "https://www.luwaran.com",
-    #     "selectors": {
-    #         "article": "PLACEHOLDER",   # CSS selector matching each repeated article block on the listing page
-    #         "title": "PLACEHOLDER",     # relative to `article` -- the headline element (e.g. "h2 a")
-    #         "link": "PLACEHOLDER",      # relative to `article` -- the <a> whose href to follow (often same as title)
-    #         "date": "PLACEHOLDER",      # relative to `article` -- the date/timestamp element
-    #         "summary": "PLACEHOLDER",   # relative to `article` -- the teaser paragraph
-    #     },
-    #     # Optional: a strptime format string matching the date element's
-    #     # text (e.g. "%B %d, %Y" for "September 7, 2026"). Omit this key
-    #     # entirely if you'd rather leave published_date as None than
-    #     # guess at a format.
-    #     "date_format": None,
-    # },
 ]
 
 

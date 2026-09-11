@@ -76,6 +76,7 @@ export default function Dashboard() {
         }
         `
       )
+      await fetchData();
     } catch {
 
     } finally {
@@ -93,7 +94,7 @@ export default function Dashboard() {
   const sentimentCounts = { positive: 0, negative: 0, neutral: 0 } as Record<SentimentLabel, number>;
   articles.forEach((a) => sentimentCounts[a.sentiment_label]++);
   const totalArticles = articles.length;
-
+  
   // Incident type distribution
   const incidentTypeCounts: Record<string, number> = {};
   incidents.forEach((i) => {
