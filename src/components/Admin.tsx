@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, AlertTriangle, Tags, Globe, Check, X, Plus } from 'lucide-react';
-import { supabase } from '@/lib/supabase'; // Ensure this path matches your project structure
+import { auth } from "@/lib/firebase";
+import { supabase } from '@/lib/supabase';
 import { UserProfile, Incident, IncidentCategory, NewsSource } from '@/types'; 
 // Or import from '../types' depending on your folder structure
 
@@ -28,39 +29,104 @@ export default function Admin() {
   }, []);
 
   const fetchUsers = async () => {
-    const { data, error } = await supabase.from('profiles').select('*');
-    if (!error && data) setUsers(data);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/admin/profiles`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch users");
+      }
+
+      const data = await response.json();
+
+      setUsers(data);
+
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
   };
 
+  // for changing
   const fetchReports = async () => {
     const { data, error } = await supabase.from('incidents').select('*').eq('status', 'reported');
     if (!error && data) setReports(data);
   };
 
+  // for changing
   const fetchCategories = async () => {
     const { data, error } = await supabase.from('incident_categories').select('*');
     if (!error && data) setCategories(data);
   };
 
+  // for changing
   const fetchSources = async () => {
     const { data, error } = await supabase.from('news_sources').select('*');
     if (!error && data) setSources(data);
   };
 
-  // --- 2. Mutation Handlers ---
-  const handleVerifyUser = async (id: string, newRole: string) => {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: newRole, is_verified: true })
-      .eq('id', id);
+  const handleVerifyUser = async (
+    id: string,
+    newRole: string
+  ) => {
+    try {
+      const user = auth.currentUser;
 
-    if (!error) {
-      setUsers(users.map((u) => (u.id === id ? { ...u, role: newRole, is_verified: true } : u)));
-    } else {
-      console.error('Error verifying user:', error);
+      if (!user) {
+        throw new Error("Not authenticated");
+      }
+
+      const token = await user.getIdToken();
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/admin/profiles/${id}/role`,
+        {
+          method: "PATCH",
+
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+
+          body: JSON.stringify({
+            role: newRole,
+            is_verified: true,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to update user");
+      }
+
+      const updatedUser = await response.json();
+
+      setUsers((currentUsers) =>
+        currentUsers.map((u) =>
+          u.id === id
+            ? {
+                ...u,
+                role: updatedUser.role,
+                is_verified: updatedUser.is_verified,
+              }
+            : u
+        )
+      );
+
+    } catch (error) {
+      console.error("Error updating user:", error);
+      alert("Failed to update user.");
     }
   };
 
+  // for changing/checking
   const handleVerifyReport = async (id: string, isVerified: boolean) => {
     const newStatus = isVerified ? 'verified' : 'rejected';
     const { error } = await supabase
@@ -92,6 +158,7 @@ export default function Admin() {
     }
   };
 
+  // for changing/checking
   const handleDeleteCategory = async (categoryToDelete: string) => {
     const { error } = await supabase
       .from('incident_categories')
@@ -105,6 +172,7 @@ export default function Admin() {
     }
   };
 
+  // for changing/checking
   const handleAddSource = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSource) return;
@@ -122,6 +190,7 @@ export default function Admin() {
     }
   };
 
+  // for changing/checking
   const handleDeleteSource = async (id: string) => {
     const { error } = await supabase
       .from('news_sources')
