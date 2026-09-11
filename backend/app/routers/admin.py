@@ -46,7 +46,7 @@ def change_role(
         raise HTTPException(status_code=403, detail="Profile not found")
 
     # Only admin can change roles
-    if requester.role != "admin":
+    if requester.role != "admin" and requester.role != "super_admin":
         raise HTTPException(status_code=403, detail="You are not authorized to change roles")
 
     # Find the user selected in User Management
@@ -59,6 +59,10 @@ def change_role(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # PROTECT SUPER ADMIN: Prevent modifying a Super Admin unless requester is also a super_admin
+    if user.role == "super_admin" and requester.role != "super_admin":
+        raise HTTPException(status_code=403, detail="Only a Super Admin can modify another Super Admin.")
+
     # Change the selected user's role
     user.role = payload.role
 
@@ -70,7 +74,6 @@ def change_role(
         "id": str(user.id),
         "role": user.role
     }
-
 # 3. Your GET Endpoint
 @router.get("/profiles")
 def get_users(

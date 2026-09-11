@@ -237,49 +237,54 @@ export default function Admin() {
 
       <div className="bg-white rounded-lg shadow p-6 border border-gray-100">
         
-{/* USERS TAB */}
+        {/* USERS TAB */}
         {activeTab === 'users' && (
           <div>
             <h2 className="text-xl font-semibold mb-4">User Management</h2>
             <div className="divide-y divide-gray-200">
-              {users.map((user) => (
-                <div key={user.id} className="py-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">{user.full_name || user.email}</p>
-                    <p className="text-sm text-gray-500">Current Role: <span className="font-semibold">{user.role}</span></p>
+              {users.map((user) => {
+                const isSuperAdmin = user.role === 'super_admin';
+                
+                return (
+                  <div key={user.id} className="py-4 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {user.full_name || user.email} {isSuperAdmin && <span className="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-semibold">Super Admin</span>}
+                      </p>
+                      <p className="text-sm text-gray-500">Current Role: <span className="font-semibold">{user.role}</span></p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => handleVerifyUser(user.id, 'admin')}
+                        className="px-4 py-2 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={user.role === 'admin' || isSuperAdmin}
+                      >
+                        Make Admin
+                      </button>
+                      
+                      <button 
+                        onClick={() => handleVerifyUser(user.id, 'personnel')}
+                        disabled={user.role === 'personnel' || isSuperAdmin}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+                          user.role === 'personnel' || isSuperAdmin
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                        }`}
+                      >
+                        Make Personnel
+                      </button>
+                      
+                      <button 
+                        onClick={() => handleVerifyUser(user.id, 'public')}
+                        className="px-4 py-2 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={user.role === 'public' || isSuperAdmin}
+                      >
+                        Make Public
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex space-x-2">
-                    {/* NEW: Make Admin But ton */}
-                    <button 
-                      onClick={() => handleVerifyUser(user.id, 'admin')}
-                      className="px-4 py-2 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={user.role === 'admin'}
-                    >
-                      Make Admin
-                    </button>
-                    
-                    <button 
-                      onClick={() => handleVerifyUser(user.id, 'personnel')}
-                      disabled={user.role === 'personnel'}
-                      className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-                        user.role === 'personnel'
-                          ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                          : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                      }`}
-                    >
-                      Make Personnel
-                    </button>
-                    
-                    <button 
-                      onClick={() => handleVerifyUser(user.id, 'public')}
-                      className="px-4 py-2 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={user.role === 'public'}
-                    >
-                      Make Public
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
