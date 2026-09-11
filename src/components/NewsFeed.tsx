@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { RefreshCw, ExternalLink, MapPin, Search, Filter } from "lucide-react";
-import { supabase } from "@/lib/supabase";
 import type { NewsArticle, SentimentLabel } from "@/types";
 import { LoadingSpinner, ErrorState, EmptyState } from "@/components/States";
 import { SentimentBadge } from "@/components/SentimentBadge";
 import { formatDate } from "@/lib/sentiment";
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function NewsFeed() {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
@@ -19,13 +20,11 @@ export default function NewsFeed() {
   const fetchArticles = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      const { data, error: err } = await supabase
-        .from("news_articles")
-        .select("*")
-        .order("published_date", { ascending: false });
-      if (err) throw err;
+      const res = await fetch(`${API_URL}/api/news?limit=100`);
+      if (!res.ok) throw new Error(`Failed to load articles (${res.status})`);
+      const data = await res.json();
       setArticles(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load articles");
@@ -42,20 +41,15 @@ export default function NewsFeed() {
     setScraping(true);
     setScrapeMessage(null);
     try {
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scrape-news`;
-      const response = await fetch(apiUrl, {
+      const response = await fetch(`${API_URL}/api/news/scrape`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
+        headers: { "Content-Type": "application/json" },
       });
       if (!response.ok) throw new Error(`Scrape failed (${response.status})`);
       const result = await response.json();
       setScrapeMessage(
         `Scraped ${result.scraped || 0} new articles, skipped ${result.skipped || 0} existing/non-BARMM articles${
-          result.errors ? `. Some sources had issues: ${result.errors.join("; ")}` : ""
+          result.errors?.length ? `. Some sources had issues: ${result.errors.join("; ")}` : ""
         }`
       );
       fetchArticles();

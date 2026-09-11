@@ -26,8 +26,8 @@ export default function Dashboard() {
     setError(null);
     try {
       const [articleRes, incidentRes] = await Promise.all([
-        fetch(`${API_URL}/api/articles?limit=100`),
-        fetch(`${API_URL}/api/incidents?limit=100`)
+        fetch(`${API_URL}/api/news?limit=100`),
+        fetch(`${API_URL}/api/incidents?limit=100`) // adjust if this router also has a different prefix
       ]);
 
       for (const res of [articleRes, incidentRes]) {
@@ -64,20 +64,15 @@ export default function Dashboard() {
     setScraping(true);
     setScrapeMessage(null);
     try {
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scrape-news`;
-      const response = await fetch(apiUrl, {
+      const response = await fetch(`${API_URL}/api/news/scrape`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
+        headers: { "Content-Type": "application/json" },
       });
       if (!response.ok) throw new Error(`Scrape failed (${response.status})`);
       const result = await response.json();
       setScrapeMessage(
         `Scraped ${result.scraped || 0} new articles, skipped ${result.skipped || 0} existing/non-BARMM articles${
-          result.errors ? `. Some sources had issues: ${result.errors.join("; ")}` : ""
+          result.errors?.length ? `. Some sources had issues: ${result.errors.join("; ")}` : ""
         }`
       );
       fetchData();
