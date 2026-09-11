@@ -234,7 +234,7 @@ export default function Admin() {
       {/* Tab Content */}
       <div className="bg-white rounded-lg shadow p-6 border border-gray-100">
         
-        {/* USERS TAB */}
+{/* USERS TAB */}
         {activeTab === 'users' && (
           <div>
             <h2 className="text-xl font-semibold mb-4">User Management</h2>
@@ -246,16 +246,26 @@ export default function Admin() {
                     <p className="text-sm text-gray-500">Current Role: <span className="font-semibold">{user.role}</span></p>
                   </div>
                   <div className="flex space-x-2">
+                    {/* NEW: Make Admin Button */}
+                    <button 
+                      onClick={() => handleVerifyUser(user.id, 'admin')}
+                      className="px-4 py-2 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={user.role === 'admin'}
+                    >
+                      Make Admin
+                    </button>
+                    
                     <button 
                       onClick={() => handleVerifyUser(user.id, 'personnel')}
-                      className="px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm font-medium"
+                      className="px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={user.role === 'personnel'}
                     >
                       Make Personnel
                     </button>
+                    
                     <button 
                       onClick={() => handleVerifyUser(user.id, 'public')}
-                      className="px-4 py-2 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium"
+                      className="px-4 py-2 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={user.role === 'public'}
                     >
                       Make Public
