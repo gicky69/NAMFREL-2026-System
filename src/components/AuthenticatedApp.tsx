@@ -14,7 +14,7 @@ import Admin from "@/components/Admin";
 
 type Page = "dashboard" | "news" | "report" | "incidents" | "admin";
 
-const NAV_ITEMS: { id: Page; label: string; icon: typeof LayoutDashboard }[] = [
+const ALL_NAV_ITEMS: { id: Page; label: string; icon: typeof LayoutDashboard }[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "news", label: "News & Sentiment", icon: Newspaper },
   { id: "report", label: "Report Incident", icon: FileWarning },
@@ -34,22 +34,36 @@ type Props = {
   onLogout: () => void;
 };
 
-export default function AuthenticatedApp({profile, onLogout,}: Props) {
-
-    const handleLogout = async () => {
+export default function AuthenticatedApp({ profile, onLogout }: Props) {
+  const handleLogout = async () => {
     try {
-        await signOut(auth);
-        console.log("User logged out successfully");
-        onLogout(); // Call the onLogout callback to update the parent state
+      await signOut(auth);
+      console.log("User logged out successfully");
+      onLogout();
     } catch (error) {
-        console.error("Logout error:", error);
+      console.error("Logout error:", error);
     }
-    };
+  };
 
-  const [page, setPage] = useState<Page>("dashboard");
+  // Determine allowed navigation items based on role
+  const isRestrictedRole = profile.role === "public" || profile.role === "personnel";
+  
+  const navItems = isRestrictedRole
+    ? ALL_NAV_ITEMS.filter((item) => item.id === "report")
+    : ALL_NAV_ITEMS.filter((item) => item.id !== "admin" || profile.role === "admin" || profile.role === "super_admin");
+
+  // Default page should be "report" for restricted users, otherwise "dashboard"
+  const [page, setPage] = useState<Page>(isRestrictedRole ? "report" : "dashboard");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false); // for user profile dropdown
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);  
+
+  // Force redirect if a restricted user somehow lands on an unallowed page
+  useEffect(() => {
+    if (isRestrictedRole && page !== "report") {
+      setPage("report");
+    }
+  }, [isRestrictedRole, page]);
 
   const navigate = useCallback((p: Page) => {
     setPage(p);
@@ -84,74 +98,63 @@ export default function AuthenticatedApp({profile, onLogout,}: Props) {
             </div>
 
             {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-3">
+              <nav className="flex items-center gap-1">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => navigate(item.id)}
+                      className={`nav-item flex items-center gap-1 px-3 py-1 rounded-lg text-base font-medium ${
+                        page === item.id ? "active text-white bg-primary-dark" : "text-white"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </nav>
 
-            {/* Desktop Navigation */}
-            <nav className="flex items-center gap-1">
-              {NAV_ITEMS.map((item) => {
-                const Icon = item.icon;
+              {/* User Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-1 p-2 rounded-lg hover:bg-primary-dark transition-all duration-200"
+                >
+                  <CircleUser className="w-6 h-6" />
+                  <ChevronDown className="w-4 h-4" />
+                </button>
 
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => navigate(item.id)}
-                    className={`nav-item flex items-center gap-1 px-3 py-1 rounded-lg text-base font-medium ${
-                      page === item.id ? "active text-white" : "text-white"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    {item.label}
-                  </button>
-                );
-              })}
-            </nav>
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden text-slate-700 z-50">
+                    <button
+                      onClick={() => {
+                        setUserMenuOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-slate-100 transition-colors"
+                    >
+                      <User className="w-4 h-4" />
+                      Profile
+                    </button>
 
-            {/* User Dropdown */}
-            <div className="relative">
+                    <div className="border-t border-slate-200" />
 
-              <button
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="flex items-center gap-1 p-2 rounded-lg hover:bg-primary-dark transition-all duration-200"
-              >
-                <CircleUser className="w-6 h-6" />
-                <ChevronDown className="w-4 h-4" />
-              </button>
-
-              {userMenuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden text-slate-700 z-50">
-
-                  {/* Profile */}
-                  <button
-                    onClick={() => {
-                      // navigate("profile");
-                      setUserMenuOpen(false);
-                    }}
-                    className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-slate-100 transition-colors"
-                  >
-                    <User className="w-4 h-4" />
-                    Profile
-                  </button>
-
-                  <div className="border-t border-slate-200" />
-
-                  {/* Logout */}
-                  <button
-                    onClick={ () => {
+                    <button
+                      onClick={() => {
                         handleLogout();
                         setUserMenuOpen(false);
-                    }}
-                    className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                  </button>
-
-                </div>
-              )}
-
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-
-          </div>
 
             {/* Mobile menu button */}
             <button
@@ -168,7 +171,7 @@ export default function AuthenticatedApp({profile, onLogout,}: Props) {
         {mobileMenuOpen && (
           <nav className="md:hidden bg-primary border-t border-primary-dark animate-fade-in">
             <div className="px-4 py-3 space-y-1">
-              {NAV_ITEMS.map((item) => {
+              {navItems.map((item) => {
                 const Icon = item.icon;
                 return (
                   <button
@@ -193,11 +196,11 @@ export default function AuthenticatedApp({profile, onLogout,}: Props) {
       {/* Main content */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
         <div key={page} className="animate-fade-in">
-          {page === "dashboard" && <Dashboard key={`dash-${refreshKey}`} />}
-          {page === "news" && <NewsFeed key={`news-${refreshKey}`} />}
+          {page === "dashboard" && !isRestrictedRole && <Dashboard key={`dash-${refreshKey}`} />}
+          {page === "news" && !isRestrictedRole && <NewsFeed key={`news-${refreshKey}`} />}
           {page === "report" && <ReportIncident onSubmitted={triggerRefresh} />}
-          {page === "incidents" && <IncidentsList key={`inc-${refreshKey}`} />}
-          {page === "admin" && <Admin key={`admin-${refreshKey}`} />}
+          {page === "incidents" && !isRestrictedRole && <IncidentsList key={`inc-${refreshKey}`} />}
+          {page === "admin" && !isRestrictedRole && <Admin key={`admin-${refreshKey}`} />}
         </div>
       </main>
 
