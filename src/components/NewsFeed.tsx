@@ -16,6 +16,8 @@ export default function NewsFeed() {
   const [sentimentFilter, setSentimentFilter] = useState<SentimentLabel | "all">("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
 
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const fetchArticles = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -42,25 +44,20 @@ export default function NewsFeed() {
     setScraping(true);
     setScrapeMessage(null);
     try {
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scrape-news`;
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
+      const response = await fetch(`${API_URL}/api/news/scrape`, {
+        method: "POST"
       });
-      if (!response.ok) throw new Error(`Scrape failed (${response.status})`);
+
+      if (!response.ok) throw new Error(`Scrape Failed (${response.status})`);
       const result = await response.json();
       setScrapeMessage(
-        `Scraped ${result.scraped || 0} new articles, skipped ${result.skipped || 0} existing/non-BARMM articles${
-          result.errors ? `. Some sources had issues: ${result.errors.join("; ")}` : ""
-        }`
-      );
-      fetchArticles();
+        `Scrape ${result.scraped || 0} new articles, skipped ${result.skipped || 0} existing/non-BARMM articles${
+          result.errors ? `. Some source issues ${result.errors.join("; ")}`: ""
+        }
+        `
+      )
     } catch (err) {
-      setScrapeMessage(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
+      setScrapeMessage(`Erorr; ${err instanceof Error ? err.message : "Unknown Error"}`);
     } finally {
       setScraping(false);
     }

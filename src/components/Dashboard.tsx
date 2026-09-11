@@ -64,25 +64,20 @@ export default function Dashboard() {
     setScraping(true);
     setScrapeMessage(null);
     try {
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scrape-news`;
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({}),
+      const response = await fetch(`${API_URL}/api/news/scrape`, {
+        method: "POST"
       });
-      if (!response.ok) throw new Error(`Scrape failed (${response.status})`);
+
+      if (!response.ok) throw new Error(`Scrape Failed (${response.status})`);
       const result = await response.json();
       setScrapeMessage(
-        `Scraped ${result.scraped || 0} new articles, skipped ${result.skipped || 0} existing/non-BARMM articles${
-          result.errors ? `. Some sources had issues: ${result.errors.join("; ")}` : ""
-        }`
-      );
-      fetchData();
-    } catch (err) {
-      setScrapeMessage(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
+        `Scrape ${result.scraped || 0} new articles, skipped ${result.skipped || 0} existing/non-BARMM articles${
+          result.errors ? `. Some source issues ${result.errors.join("; ")}`: ""
+        }
+        `
+      )
+    } catch {
+
     } finally {
       setScraping(false);
     }

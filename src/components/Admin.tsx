@@ -171,20 +171,13 @@ export default function Admin() {
   };
 
   const handleAddSource = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.defaultPrevented();
     if (!newSource) return;
 
-    const { data, error } = await supabase
-      .from('news_sources')
-      .insert([{ name: new URL(newSource).hostname, url: newSource }])
-      .select();
-
-    if (!error && data) {
-      setSources([...sources, data[0]]);
-      setNewSource('');
-    } else {
-      console.error('Error adding source:', error);
-    }
+    const res = await fetch(`${API_URL}/api/newSource`, {
+      method: "POST",
+      
+    });
   };
 
   const handleDeleteSource = async (id: string) => {
