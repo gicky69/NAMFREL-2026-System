@@ -5,10 +5,10 @@ class Settings(BaseSettings):
     database_url: str
     cors_origins: str = "http://localhost:5173"
     env: str = "development"
-    sentiment_model_name: str = "jjjardev/tagasenti_model"
-    sentiment_device: str = "auto"
+    sentiment_api_url: str | None = None
+    sentiment_api_key: str | None = None
+    sentiment_timeout: float = 5.0
     sentiment_fallback_enabled: bool = True
-    sentiment_cache_dir: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

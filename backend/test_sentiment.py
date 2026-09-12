@@ -4,7 +4,6 @@ import sys
 sys.stdout.reconfigure(line_buffering=True)
 logging.basicConfig(level=logging.INFO)
 
-import pytest
 from app.services.sentiment import analyze_sentiment, _analyze_sentiment_fallback, load_model, is_model_loaded
 from app.schemas import SentimentAnalyzeRequest
 from app.routers.sentiment import analyze_text_sentiment, sentiment_status
@@ -59,9 +58,9 @@ def test_sentiment_router_endpoint():
     assert -1.0 <= preview.score <= 1.0
 
     status = sentiment_status()
-    assert "model_name" in status
-    assert "is_model_loaded" in status
-    assert "device" in status
+    assert "external_api_url" in status
+    assert "is_external_api_configured" in status
+    assert "mode" in status
 
 
 if __name__ == "__main__":
