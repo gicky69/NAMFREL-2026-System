@@ -23,7 +23,7 @@ def get_client_ip(request: Request):
 def list_incidents(
     limit: int = Query(default=100, le=500),
     status: list[str] | None = Query(default=None),
-    profile: Profile = Depends(require_roles("admin", "personnel")),
+    profile: Profile = Depends(require_roles("admin", "personnel", "super_admin")),
     db: Session = Depends(get_db),
 ):
     query = db.query(Incident)
