@@ -76,3 +76,34 @@ async def login(
         "role": profile.role,
         "is_verified": profile.is_verified
     }
+    
+
+def get_current_profile(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db),
+) -> Profile:
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header is missing")
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid authorization format")
+    
+    token = authorization.replace("Bearer ", "", 1)
+    try:
+        decoded_token = verify_firebase_token(token)
+    except Exception as e:
+        print("Firebase verification error:", e)
+        raise HTTPException(status_code=401, detail="Invalid or Expired Firebase Token")
+
+    profile = (
+        db.query(Profile)
+        .filter(Profile.firebase_uid == decoded_token["uid"])
+        .first()
+    )
+    if not profile:
+        raise HTTPException(status_code=401, detail="No profile found for this account")
+    return profile
+
+def require_admin(profile: Profile = Depends(get_current_profile)) -> Profile:
+    if profile.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return profile
