@@ -351,26 +351,28 @@ export default function Admin() {
     <div className="max-w-7xl mx-auto p-6">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Admin Dashboard</h1>
 
-      <div className="flex space-x-4 border-b border-gray-200 mb-6">
-        {[
-          { id: 'users', label: 'User Verification', icon: Users },
-          { id: 'reports', label: 'Report Verification', icon: AlertTriangle },
-          { id: 'categories', label: 'Incident Categories', icon: Tags },
-          { id: 'sources', label: 'News Sources', icon: Globe },
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as TabType)}
-            className={`flex items-center space-x-2 py-4 px-6 border-b-2 transition-colors ${
-              activeTab === tab.id
-                ? 'border-blue-600 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <tab.icon size={20} />
-            <span className="font-medium">{tab.label}</span>
-          </button>
-        ))}
+      <div className="border-b border-gray-200 mb-6 overflow-x-auto">
+        <div className="flex min-w-max gap-2">
+          {[
+            { id: 'users', label: 'User Verification', icon: Users },
+            { id: 'reports', label: 'Report Verification', icon: AlertTriangle },
+            { id: 'categories', label: 'Incident Categories', icon: Tags },
+            { id: 'sources', label: 'News Sources', icon: Globe },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as TabType)}
+              className={`flex items-center space-x-2 py-4 px-6 border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <tab.icon size={20} />
+              <span className="font-medium">{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow p-6 border border-gray-100">
@@ -384,7 +386,7 @@ export default function Admin() {
                 const isSuperAdmin = user.role === 'super_admin';
                 
                 return (
-                  <div key={user.id} className="py-4 flex items-center justify-between">
+                  <div key={user.id} className="py-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="font-medium text-gray-900">
                         {user.full_name || user.email} {isSuperAdmin && <span className="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-semibold">Super Admin</span>}
@@ -440,7 +442,7 @@ export default function Admin() {
                     <p className="font-medium text-gray-900">{report.title}</p>
                     <p className="text-sm text-gray-500">{report.province} {report.municipality && `- ${report.municipality}`}</p>
                   </div>
-                  <div className="flex space-x-2">
+                  <div className="flex flex-wrap gap-2 justify-end">
                     <button
                       onClick={() => handleVerifyReport(report.id, true)}
                       className="flex items-center space-x-1 px-4 py-2 bg-green-50 text-green-700 rounded-md hover:bg-green-100 text-sm font-medium transition"
@@ -465,13 +467,13 @@ export default function Admin() {
         {activeTab === 'categories' && (
           <div>
             <h2 className="text-xl font-semibold mb-4">Manage Incident Categories</h2>
-            <form onSubmit={handleAddCategory} className="flex space-x-4 mb-6">
+            <form onSubmit={handleAddCategory} className="flex flex-col sm:flex-row gap-3 mb-6">
               <input
                 type="text"
                 value={newCategory}
                 onChange={(e) => setNewCategory(e.target.value)}
                 placeholder="New category name..."
-                className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
+                className="w-full flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
               />
               <button type="submit" className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark">
                 <Plus size={20} />
@@ -498,20 +500,20 @@ export default function Admin() {
         {activeTab === 'sources' && (
           <div>
             <h2 className="text-xl font-semibold mb-4">Scraper News Sources</h2>
-            <form onSubmit={handleAddSource} className="flex space-x-4 mb-6">
+            <form onSubmit={handleAddSource} className="flex flex-col sm:flex-row gap-3 mb-6">
             <input
               type="text"
               value={newSourceName}
               onChange={(e) => setNewSourceName(e.target.value)}
               placeholder="Source name"
-              className="w-1/3 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
+              className="w-full sm:w-1/3 rounded-md border-gray-300 shadow-sm border p-2"
             />
             <input
               type="url"
               value={newSourceURL}
               onChange={(e) => setNewSourceURL(e.target.value)}
               placeholder="https://example-news.com/feed"
-              className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
+              className="w-full flex-1 rounded-md border-gray-300 shadow-sm border p-2"
             />
             <button type="submit" className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark">
               <Plus size={20} />
@@ -520,10 +522,10 @@ export default function Admin() {
           </form>
             <ul className="divide-y divide-gray-200">
               {sources.map((source) => (
-                <li key={source.id} className="py-3 flex items-center justify-between text-gray-700">
+                <li key={source.id} className="py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between text-gray-700">
                   <div className="flex flex-col">
                     <span className="font-medium text-sm">{source.name}</span>
-                    <span className="text-xs text-gray-500">{source.url}</span>
+                    <span className="text-xs text-gray-500 break-all">{source.url}</span>
                   </div>
                   <button
                     onClick={() => handleDeleteSource(source.id)}
