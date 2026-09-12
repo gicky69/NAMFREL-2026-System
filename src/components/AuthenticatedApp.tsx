@@ -137,14 +137,6 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
                   {userMenuOpen && (
                     <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden text-slate-700 z-50">
 
-                      <button
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-slate-100 transition-colors"
-                      >
-                        <User className="w-4 h-4" />
-                        Profile
-                      </button>
-
                       <div className="border-t border-slate-200" />
 
                       <button
