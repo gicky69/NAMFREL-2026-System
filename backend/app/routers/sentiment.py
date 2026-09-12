@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api/sentiment", tags=["sentiment"])
 @router.post("/analyze", response_model=SentimentPreview)
 def analyze_text_sentiment(payload: SentimentAnalyzeRequest):
     """
-    Analyze sentiment of the given text using the TagaSenti model.
+    Analyze sentiment of the given text via external API or lexicon fallback.
     """
     score, label = analyze_sentiment(payload.text)
     return SentimentPreview(score=score, label=label)
@@ -19,10 +19,11 @@ def analyze_text_sentiment(payload: SentimentAnalyzeRequest):
 @router.get("/status")
 def sentiment_status():
     """
-    Check the status of the TagaSenti sentiment model.
+    Check the status of the sentiment analysis service.
     """
     return {
-        "model_name": settings.sentiment_model_name,
-        "is_model_loaded": is_model_loaded(),
-        "device": get_device(),
+        "external_api_url": settings.sentiment_api_url,
+        "is_external_api_configured": is_model_loaded(),
+        "mode": get_device(),
+        "fallback_enabled": settings.sentiment_fallback_enabled,
     }

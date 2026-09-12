@@ -80,35 +80,23 @@ correct CSS selectors for each site's article listing page. Some sites render
 content client-side with JS, in which case `httpx` + BeautifulSoup won't see
 the content — you'd need Playwright for those instead.
 
-## 6b. Running the TagaSenti sentiment model
+## 6b. Sentiment Analysis Architecture (External API / Lexicon Fallback)
 
-`app/services/sentiment.py` uses the **TagaSenti** transformer model
-(`jjjardev/tagasenti_model`), fine-tuned from XLM-RoBERTa specifically for
-ternary sentiment classification (Negative / Neutral / Positive) on Tagalog,
-Taglish, and Philippine language contexts relevant to BARMM elections.
+Sentiment analysis for news articles and incident reports is designed to be decoupled:
+- **Lightweight Backend**: The main API server does not run heavy LLM / PyTorch models locally, keeping startup instant and memory usage minimal (<100MB).
+- **External LLM Service**: You can deploy the sentiment model (such as TagaSenti or another LLM) separately as an independent microservice / API endpoint and point to it via `SENTIMENT_API_URL`.
+- **Lexicon Fallback**: If no external API is configured or if the external service times out or is unreachable, the system automatically uses the built-in election-domain lexicon scorer.
 
-### Key Features:
-- **Trained on Philippine Contexts**: Specifically handles Tagalog, Taglish,
-  sarcasm, negation, hedging, and regional low-resource language transfer.
-- **Continuous Normalized Scoring**: Computes directional sentiment polarity
-  in `[-1.0, 1.0]` as $P(\text{Positive}) - P(\text{Negative})$, matching
-  the DB schema (`real`) and frontend indicators.
-- **Graceful Fallback**: If Hugging Face is unreachable or dependencies are
-  unavailable, the service transparently falls back to the keyword lexicon
-  analyzer without crashing.
-- **API Endpoint**:
-  - `POST /api/sentiment/analyze` with `{ "text": "..." }` returns
-    `{ "score": float, "label": "positive" | "negative" | "neutral" }`.
-  - `GET /api/sentiment/status` returns model loading status and active device.
+### Configuration (`.env`):
+```env
+# Optional external sentiment endpoint
+SENTIMENT_API_URL=http://localhost:8001/analyze
+# SENTIMENT_API_KEY=your-api-key
+```
 
-### Operational Notes:
-- **First run downloads the model** (~1.1GB to 2.2GB) from Hugging Face Hub.
-  Make sure the server has outbound internet access or pre-downloads weights.
-- **Startup time**: The model is loaded once in memory during FastAPI's `lifespan`
-  startup hook.
-- **Memory footprint**: Budget at least 2GB RAM for CPU inference (or GPU with CUDA).
-- **Client debouncing**: In `ReportIncident.tsx`, description input is debounced
-  (400ms) before hitting `/api/sentiment/analyze` with local client-side instant preview.
+### Endpoints:
+- `POST /api/sentiment/analyze` with `{ "text": "..." }` returns `{ "score": float, "label": "positive" | "negative" | "neutral" }`.
+- `GET /api/sentiment/status` returns whether the external endpoint is configured and active.
 
 ## 7. Not included yet, worth deciding on next
 
