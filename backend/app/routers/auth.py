@@ -103,6 +103,13 @@ def get_current_profile(
         raise HTTPException(status_code=401, detail="No profile found for this account")
     return profile
 
+def require_roles(*allowed_roles: str):
+    def checker(profile: Profile = Depends(get_current_profile)) -> Profile:
+        if profile.role not in allowed_roles:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        return profile
+    return checker
+
 def require_admin(profile: Profile = Depends(get_current_profile)) -> Profile:
     if profile.role != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")

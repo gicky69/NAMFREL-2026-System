@@ -225,9 +225,8 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
         }
 
         const token = await user.getIdToken();
-
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/admin/categories`,
+          `${import.meta.env.VITE_API_URL}/api/incidents/incident-types`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

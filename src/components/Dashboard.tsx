@@ -6,6 +6,7 @@
   import { SentimentBadge } from "@/components/SentimentBadge";
   import { formatDate } from "@/lib/sentiment";
   import { ProvinceMap } from "@/components/ProvinceMap";
+  import { auth } from "@/lib/firebase";
 
 
   const API_URL = import.meta.env.VITE_API_URL;
@@ -23,23 +24,28 @@
     const [scrapeMessage, setScrapeMessage] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [articleRes, incidentRes] = await Promise.all([
-        fetch(`${API_URL}/api/articles?limit=100`),
-        fetch(`${API_URL}/api/incidents?limit=100`)
-      ]);
+      setLoading(true);
+      setError(null);
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error("Not authenticated");
+        }
+        const token = await user.getIdToken();
+        const headers = { Authorization: `Bearer ${token}` };
+
+        const [articleRes, incidentRes] = await Promise.all([
+          fetch(`${API_URL}/api/articles?limit=100`, { headers }),
+          fetch(`${API_URL}/api/incidents?limit=100&status=verified`, { headers })
+        ]);
 
         for (const res of [articleRes, incidentRes]) {
           if (!res.ok) {
-            let detail = `Request Failed with stats ${res.status}`;
+            let detail = `Request Failed with status ${res.status}`;
             try {
               const body = await res.json();
               if (body?.detail) detail = body.detail;
-            } catch {
-
-            }
+            } catch {}
             throw new Error(detail);
           }
         }
@@ -49,7 +55,7 @@
           incidentRes.json(),
         ]);
 
-        setData({ articles: articles || [], incidents: incidents || []});
+        setData({ articles: articles || [], incidents: incidents || [] });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load dashboard data");
       } finally {

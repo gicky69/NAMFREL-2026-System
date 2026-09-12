@@ -6,6 +6,7 @@ import { LoadingSpinner, ErrorState, EmptyState } from "@/components/States";
 import { SentimentBadge } from "@/components/SentimentBadge";
 import { IncidentTypeBadge, SeverityBadge, StatusBadge } from "@/components/Badges";
 import { formatDate } from "@/lib/sentiment";
+import { auth } from "@/lib/firebase";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -23,8 +24,16 @@ export default function IncidentsList() {
   const fetchIncidents = useCallback(async () => {
     setLoading(true);
     setError(null);
+    const user = auth.currentUser;
     try {
-      const res = await fetch(`${API_URL}/api/incidents?status=verified`);
+
+      const token = await user?.getIdToken();
+
+      const res = await fetch(`${API_URL}/api/incidents?status=verified`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!res.ok) {
         let detail= `Request failed with status ${res.status}`;
         try {

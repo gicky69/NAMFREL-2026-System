@@ -2,6 +2,7 @@ import datetime
 import uuid
 from typing import Optional
 
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -40,6 +41,10 @@ class IncidentOut(BaseModel):
     contact_info: Optional[str] = None
     sentiment_score: float
     sentiment_label: str
+    created_at: datetime.datetime
+    
+class IncidentCategoryOut(BaseModel):
+    name: str
     created_at: datetime.datetime
     
 class IncidentStatusUpdate(BaseModel):

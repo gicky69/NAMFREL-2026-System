@@ -61,7 +61,18 @@ export default function Admin() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/incidents?limit=100`);
+
+      const user = auth.currentUser;
+      if (!user){
+        throw new Error("Not Authenticated");
+      }
+
+      const token = await user.getIdToken();
+      const res = await fetch(`${API_URL}/api/incidents?limit=100`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!res.ok) throw new Error(`Failed to fetch incidents (${res.status})`);
       const data: Incident[] = await res.json();
       setIncidents(data || []);
