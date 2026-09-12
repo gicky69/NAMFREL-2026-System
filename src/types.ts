@@ -4,7 +4,26 @@ export type Severity = "low" | "medium" | "high" | "critical";
 
 export type IncidentStatus = "reported" | "verified" | "resolved";
 
-  
+export const ORGANIZATIONS = [
+  "CCAA",
+  "CSAT",
+  "IAG",
+  "NAMFREL",
+  "NDBC",
+  "NDU",
+  "PPCRV",
+] as const;
+export type Organization = typeof ORGANIZATIONS[number];
+
+export type IncidentType =
+  | "violence"
+  | "vote_buying"
+  | "intimidation"
+  | "fraud"
+  | "infrastructure"
+  | "displacement"
+  | "other";
+
 export interface UserProfile {
   id: string;
   firebase_uid: string;
@@ -55,12 +74,16 @@ export interface Incident {
   province: string;
   municipality: string | null;
   incident_date: string;
+  incident_hour: string;
+  incident_minute: string;
+  incident_period: "AM" | "PM";
   reported_by: string | null;
   contact_info: string | null;
   status: IncidentStatus;
   sentiment_score: number;
   sentiment_label: SentimentLabel;
   created_at: string;
+  organization?: string;
 }
 
 export interface NewIncident {
@@ -73,6 +96,10 @@ export interface NewIncident {
   incident_date: string;
   reported_by?: string;
   contact_info?: string;
+  organization?: string;
+  incident_hour?: string;
+  incident_minute?: string;
+  incident_period?: "AM" | "PM";
 }
 
 export const BARMM_PROVINCES = [

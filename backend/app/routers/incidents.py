@@ -1,14 +1,21 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Incident
+from app.models import Incident, IncidentCategory
 from app.schemas import IncidentCreate, IncidentOut, IncidentStatusUpdate
 from app.services.sentiment import analyze_sentiment
 
 router = APIRouter(prefix="/api/incidents", tags=["incidents"])
 
+def get_client_ip(request: Request):
+    forwarded_for = request.headers.get("X-Forwarded-For")
+
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+
+    return request.client.host if request.client else None
 
 @router.get("", response_model=list[IncidentOut])
 def list_incidents(
@@ -47,12 +54,14 @@ def list_incident_categories(db: Session = Depends(get_db)):
 @router.post("", response_model=IncidentOut, status_code=201)
 def create_incident(
     payload: IncidentCreate,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     score, label = analyze_sentiment(payload.description)
 
     incident = Incident(
         **payload.model_dump(),
+        reporter_ip=get_client_ip(request),
         sentiment_score=score,
         sentiment_label=label
     )

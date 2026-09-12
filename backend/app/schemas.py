@@ -13,8 +13,15 @@ class IncidentCreate(BaseModel):
     province: str
     municipality: Optional[str] = None
     incident_date: datetime.date
+    incident_time: datetime.time
     reported_by: Optional[str] = None
+    organization: Optional[str] = None
     contact_info: Optional[str] = None
+
+    # report approx location
+    reporter_latitude: Optional[float] = None
+    reporter_longitude: Optional[float] = None
+    reporter_location_accuracy: Optional[float] = None
 
 
 class IncidentOut(BaseModel):
