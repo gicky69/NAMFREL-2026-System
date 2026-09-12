@@ -20,6 +20,269 @@ export default function IncidentsList() {
   const [provinceFilter, setProvinceFilter] = useState<string>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  const formatTime = (time: string | null | undefined) => {
+    if (!time) return "";
+
+    const [hours, minutes] = time.split(":");
+    const date = new Date();
+    date.setHours(Number(hours), Number(minutes));
+
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  const handleDownloadPDF = async (incidentId: string) => {
+    const { jsPDF } = await import("jspdf");
+
+    const incident = incidents.find((i) => i.id === incidentId);
+    if (!incident) return;
+
+    const doc = new jsPDF({
+      unit: "mm",
+      format: "a4",
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+
+    const margin = 22;
+    const contentWidth = pageWidth - margin * 2;
+
+    let y = 25;
+
+    // =========================
+    // HELPERS
+    // =========================
+
+    const checkPage = (neededSpace = 20) => {
+      if (y + neededSpace > pageHeight - 25) {
+        doc.addPage();
+        y = 25;
+      }
+    };
+
+    const addDivider = () => {
+      checkPage(8);
+
+      doc.setDrawColor(225, 225, 225);
+      doc.setLineWidth(0.3);
+
+      doc.line(margin, y, pageWidth - margin, y);
+
+      y += 10;
+    };
+
+    const addSectionTitle = (title: string) => {
+      checkPage(15);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(30, 30, 30);
+
+      doc.text(title, margin, y);
+
+      y += 9;
+    };
+
+    const addField = (
+      label: string,
+      value: string | number | null | undefined
+    ) => {
+      checkPage(20);
+
+      // Label
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(110, 110, 110);
+
+      doc.text(label.toUpperCase(), margin, y);
+
+      y += 6;
+
+      // Value
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(11);
+      doc.setTextColor(40, 40, 40);
+
+      const text =
+        value !== null &&
+        value !== undefined &&
+        String(value).trim() !== ""
+          ? String(value)
+          : "—";
+
+      const wrappedText = doc.splitTextToSize(
+        text,
+        contentWidth
+      );
+
+      doc.text(wrappedText, margin, y);
+
+      y += wrappedText.length * 5.5 + 7;
+    };
+
+    // =========================
+    // TITLE
+    // =========================
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(24);
+    doc.setTextColor(30, 30, 30);
+
+    const titleLines = doc.splitTextToSize(
+      incident.title || "Untitled Incident",
+      contentWidth
+    );
+
+    doc.text(titleLines, margin, y);
+
+    y += titleLines.length * 10 + 5;
+
+    // Small metadata
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(130, 130, 130);
+
+    doc.text(
+      `Incident Report • ID: ${incident.id}`,
+      margin,
+      y
+    );
+
+    y += 12;
+
+    addDivider();
+
+    // =========================
+    // OVERVIEW
+    // =========================
+
+    addSectionTitle("Overview");
+
+    addField(
+      "Date & Time",
+      `${formatDate(incident.incident_date)} at ${formatTime(
+        incident.incident_time
+      )}`
+    );
+
+    addField("Incident Type", incident.incident_type);
+
+    addField("Severity", incident.severity);
+
+    addField("Status", incident.status);
+
+    addDivider();
+
+    // =========================
+    // LOCATION
+    // =========================
+
+    addSectionTitle("Location");
+
+    addField("Province", incident.province);
+
+    addField(
+      "Municipality",
+      incident.municipality || "Not specified"
+    );
+
+    addDivider();
+
+    // =========================
+    // DESCRIPTION
+    // =========================
+
+    addSectionTitle("Description");
+
+    addField(
+      "Incident Details",
+      incident.description
+    );
+
+    addDivider();
+
+    // =========================
+    // REPORTER
+    // =========================
+
+    addSectionTitle("Reporter Information");
+
+    addField(
+      "Reported By",
+      incident.reported_by || "Anonymous"
+    );
+
+    addField(
+      "Contact Information",
+      incident.contact_info || "Not provided"
+    );
+
+    addField("Approximate Location (Latitude, Longitude)",
+      incident.reporter_latitude && incident.reporter_longitude
+        ? `${incident.reporter_latitude.toFixed(6)}, ${incident.reporter_longitude.toFixed(6)}`
+        : "Not provided"
+    )
+
+    addDivider();
+
+    // =========================
+    // SENTIMENT ANALYSIS
+    // =========================
+
+    addSectionTitle("Sentiment Analysis");
+
+    addField(
+      "Sentiment",
+      incident.sentiment_label
+    );
+
+    addField(
+      "Sentiment Score",
+      incident.sentiment_score
+    );
+
+    // =========================
+    // FOOTER
+    // =========================
+
+    const totalPages = doc.getNumberOfPages();
+
+    for (let page = 1; page <= totalPages; page++) {
+      doc.setPage(page);
+
+      doc.setDrawColor(230, 230, 230);
+      doc.line(
+        margin,
+        pageHeight - 18,
+        pageWidth - margin,
+        pageHeight - 18
+      );
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(140, 140, 140);
+
+      doc.text(
+        "Incident Reporting System",
+        margin,
+        pageHeight - 11
+      );
+
+      doc.text(
+        `Page ${page} of ${totalPages}`,
+        pageWidth - margin,
+        pageHeight - 11,
+        { align: "right" }
+      );
+    }
+
+    doc.save(`incident_${incident.id}.pdf`);
+  };
+
   const fetchIncidents = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -38,6 +301,7 @@ export default function IncidentsList() {
       }
       const data: Incident[] = await res.json();
       setIncidents(data);
+      console.log("Fetched incidents:", data);  
     } catch (err) {
       setError(err instanceof Error ? err.message: "Failed to load incidents");
     } finally {
@@ -63,7 +327,7 @@ export default function IncidentsList() {
         incident.description,
         incident.province,
         incident.municipality,
-        incident.reported_by,
+        incident.reported_by
       ].some((field) => field?.toLowerCase().includes(q));
       if (!matches) return false;
     }
@@ -180,11 +444,14 @@ export default function IncidentsList() {
                       <span className="inline-flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5" />
                         {formatDate(incident.incident_date)}
+
                       </span>
                     </div>
                   </div>
                   <SentimentBadge label={incident.sentiment_label} score={incident.sentiment_score} />
                 </div>
+
+
               </button>
 
               {expandedId === incident.id && (
@@ -208,12 +475,28 @@ export default function IncidentsList() {
                         <p className="text-xs text-slate-400">Contact</p>
                         <p className="text-sm text-slate-700">{incident.contact_info}</p>
                       </div>
-                    )}
+                    )}                    
+                    <div>
+                      <p className="text-xs text-slate-400">Incident Date</p>
+                      <p className="text-sm text-slate-700">
+                        {formatDate(
+                          `${incident.incident_date}`
+                        )} at {formatTime(incident.incident_time)}
+                      </p>
+                    </div>
+
                     <div>
                       <p className="text-xs text-slate-400">Submitted</p>
                       <p className="text-sm text-slate-700">{formatDate(incident.created_at)}</p>
                     </div>
                   </div>
+
+                  <button 
+                    className="text-sm mt-4 px-4 py-2 bg-primary text-white rounded hover:bg-primary-dark"
+                    onClick={() => handleDownloadPDF(incident.id)}
+                  >
+                      Download as PDF
+                  </button>
                 </div>
               )}
             </div>
