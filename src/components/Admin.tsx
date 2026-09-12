@@ -29,10 +29,10 @@ export default function Admin() {
   const [newSource, setNewSource] = useState('');
 
   // Success message states
+  const [title, setTitle] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [showStatusPage, setShowStatusPage] = useState(false);
   
-
   useEffect(() => {
     fetchUsers();
     fetchIncidents();
@@ -54,9 +54,6 @@ export default function Admin() {
     }
   };
 
-  // Fetches all incidents, and derives `reports` as just the ones still
-  // awaiting a decision -- the "Report Verification" tab reads from
-  // `reports`, not `incidents` directly, so both need to be set here.
   const fetchIncidents = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -127,6 +124,7 @@ export default function Admin() {
       );
 
       // Show success message
+      setTitle("User Role Updated");
       setStatusMessage(`User successfully updated to ${updatedUser.role}.`);
       setShowStatusPage(true);
 
@@ -137,7 +135,12 @@ export default function Admin() {
 
     } catch (error) {
       console.error("Error updating user:", error);
-      alert("Failed to update user.");
+      setTitle("Error Updating User");
+      setStatusMessage(`Failed to update user (${error instanceof Error ? error.message : "unknown error"})`);
+      setShowStatusPage(true);
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
     }
   };
 
@@ -157,6 +160,7 @@ export default function Admin() {
       });
       if (!res.ok) throw new Error(`Failed to update report (${res.status})`);
 
+      setTitle(`Report ${isVerified ? "Verified" : "Rejected"}`);
       setStatusMessage(`Report was successfully ${isVerified ? "verified" : "rejected"}.`);
       setShowStatusPage(true);
 
@@ -171,6 +175,12 @@ export default function Admin() {
       setIncidents((prev) => prev.map((i) => (i.id === id ? updated : i)));
     } catch (error) {
       console.error('Error updating report:', error);
+      setTitle("Error Updating Report");
+      setStatusMessage(`Failed to update report (${error instanceof Error ? error.message : "unknown error"})`);
+      setShowStatusPage(true);
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
       alert("Failed to update report.");
     }
   };
@@ -191,6 +201,7 @@ export default function Admin() {
         body: JSON.stringify({ name: newCategory }),
       });
       if (!response.ok) {
+        setTitle("Error Adding Category");
         setStatusMessage(`Failed to add category (${response.status})`);
         setShowStatusPage(true);
         setTimeout(() => {
@@ -203,6 +214,7 @@ export default function Admin() {
       setCategories([...categories, addedCategory]);
       setNewCategory('');
 
+      setTitle("Category Added");
       setStatusMessage(`"${addedCategory.name}" was successfully added in the list.`);
       setShowStatusPage(true);
 
@@ -231,6 +243,13 @@ export default function Admin() {
       );
 
       if (!response.ok) {
+        setTitle("Error Deleting Category");
+        setStatusMessage(`Failed to delete category (${response.status})`);
+        setShowStatusPage(true);
+        setTimeout(() => {
+          setShowStatusPage(false);
+        }, 3000);
+
         throw new Error("Failed to delete category");
       }
 
@@ -242,6 +261,7 @@ export default function Admin() {
       );
       
 
+      setTitle("Category Deleted");
       setStatusMessage(`"${categoryName}" was successfully deleted.`);
       setShowStatusPage(true);
 
@@ -251,7 +271,12 @@ export default function Admin() {
 
     } catch (error) {
       console.error("Error deleting category:", error);
-      alert("Failed to delete category.");
+      setTitle("Error Deleting Category");
+      setStatusMessage(`Failed to delete category (${error instanceof Error ? error.message : "unknown error"})`);
+      setShowStatusPage(true);
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
     }
   };
   // #endregion
@@ -270,8 +295,22 @@ export default function Admin() {
     });
     if (!rest.ok) {
       console.error("Failed to add source", rest.status);
+      setTitle("Error Adding Source");
+      setStatusMessage(`Failed to add source (${rest.status})`);
+      setShowStatusPage(true);
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
       return
     }
+
+    setTitle("Source Added");
+    setStatusMessage(`"${newSourceName}" was successfully added in the list.`);
+    setShowStatusPage(true);
+
+    setTimeout(() => {
+      setShowStatusPage(false);
+    }, 3000);
 
     setNewSourceName("");
     setNewSourceURL("");
@@ -285,7 +324,24 @@ export default function Admin() {
       headers: { Authorization: `Bearer ${token}`},
     });
 
-    if (res.ok) await fetchSources();
+    if (res.ok) {
+      await fetchSources();
+      setTitle("Source Deleted");
+      setStatusMessage(`Source was successfully deleted.`);
+      setShowStatusPage(true);
+
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
+    } else {
+      console.error("Failed to delete source", res.status);
+      setTitle("Error Deleting Source");
+      setStatusMessage(`Failed to delete source (${res.status})`);
+      setShowStatusPage(true);
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
+    }
   };
 
   return (
@@ -387,14 +443,14 @@ export default function Admin() {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => handleVerifyReport(report.id, true)}
-                      className="flex items-center space-x-1 px-3 py-2 bg-green-50 text-green-700 rounded-md hover:bg-green-100"
+                      className="flex items-center space-x-1 px-4 py-2 bg-green-50 text-green-700 rounded-md hover:bg-green-100 text-sm font-medium transition"
                     >
                       <Check size={16} />
                       <span>Verify</span>
                     </button>
                     <button
                       onClick={() => handleVerifyReport(report.id, false)}
-                      className="flex items-center space-x-1 px-3 py-2 bg-red-50 text-red-700 rounded-md hover:bg-red-100"
+                      className="flex items-center space-x-1 px-4 py-2 bg-red-50 text-red-700 rounded-md hover:bg-red-100 text-sm font-medium transition"
                     >
                       <X size={16} />
                       <span>Reject</span>
@@ -417,7 +473,7 @@ export default function Admin() {
                 placeholder="New category name..."
                 className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
               />
-              <button type="submit" className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+              <button type="submit" className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark">
                 <Plus size={20} />
                 <span>Add Category</span>
               </button>
@@ -457,7 +513,7 @@ export default function Admin() {
               placeholder="https://example-news.com/feed"
               className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
             />
-            <button type="submit" className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            <button type="submit" className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark">
               <Plus size={20} />
               <span>Add Source</span>
             </button>
@@ -495,7 +551,7 @@ export default function Admin() {
 
             <div className="flex-1">
               <h3 className="font-semibold text-slate-900">
-                Success!
+                {title}
               </h3>
 
               <p className="text-sm text-slate-500">

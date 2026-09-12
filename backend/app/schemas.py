@@ -37,11 +37,16 @@ class IncidentOut(BaseModel):
     province: str
     municipality: Optional[str] = None
     incident_date: datetime.date
+    incident_time: datetime.time
     reported_by: Optional[str] = None
     contact_info: Optional[str] = None
     sentiment_score: float
     sentiment_label: str
     created_at: datetime.datetime
+
+    # lat long
+    reporter_latitude: Optional[float] = None
+    reporter_longitude: Optional[float] = None
     
 class IncidentCategoryOut(BaseModel):
     name: str
