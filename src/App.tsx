@@ -45,7 +45,6 @@ export default function App() {
       }
 
       try {
-        console.log("Firebase session found:", user.email);
 
         const token = await user.getIdToken();
 
@@ -65,8 +64,6 @@ export default function App() {
         }
 
         const data = await response.json();
-
-        console.log("Backend profile:", data);
 
         setProfile(data);
 

@@ -211,6 +211,7 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
           <nav className="md:hidden bg-primary border-t border-primary-dark animate-fade-in relative z-20">
             <div className="px-4 py-3 space-y-1">
 
+              {/* Navigation Items */}
               {navItems.map((item) => {
                 const Icon = item.icon;
 
@@ -229,6 +230,21 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
                   </button>
                 );
               })}
+
+              {/* Divider */}
+              <div className="border-t border-white/20 my-2" />
+
+              {/* Logout */}
+              <button
+                onClick={() => {
+                  handleLogout();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-red-200 hover:bg-red-500/20 hover:text-red-100 transition-all duration-200"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
 
             </div>
           </nav>
