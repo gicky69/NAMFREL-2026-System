@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import Column, String, Text, text, Float, Date, DateTime, ARRAY, Boolean
 from sqlalchemy.dialects.postgresql import UUID, ENUM as PGEnum
 from sqlalchemy.sql import func
+from sqlalchemy import Time
 
 from app.db import Base
 
@@ -76,6 +77,7 @@ class Incident(Base):
     province = Column(String, nullable=False)
     municipality = Column(String, nullable=True)
     incident_date = Column(Date, nullable=False)
+    incident_time = Column(DateTime(timezone=True), nullable=False)
     reported_by = Column(String, nullable=True)
     contact_info = Column(String, nullable=True)
     sentiment_score = Column(Float, nullable=False, default=0.0)
@@ -89,6 +91,13 @@ class Incident(Base):
     verified_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    organization = Column(String, nullable=True)
+
+    # report approx location
+    reporter_latitude = Column(Float, nullable=True)
+    reporter_longitude = Column(Float, nullable=True)
+    reporter_location_accuracy = Column(Float, nullable=True)
+    reporter_ip = Column(String, nullable=True)
 
 
 class IncidentCategory(Base):
