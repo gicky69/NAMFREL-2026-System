@@ -26,3 +26,4 @@ __pycache__/
 *.py[cod]
 
 backend/firebase-service-account.json
+backend/app/services/firebase.py
