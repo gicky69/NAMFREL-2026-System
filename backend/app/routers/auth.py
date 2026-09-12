@@ -104,6 +104,6 @@ def get_current_profile(
     return profile
 
 def require_admin(profile: Profile = Depends(get_current_profile)) -> Profile:
-    if profile.role != "admin":
+    if profile.role != "admin" and profile.role != "super_admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return profile
