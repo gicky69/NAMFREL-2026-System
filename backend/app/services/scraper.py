@@ -42,6 +42,11 @@ BARMM_ELECTION_2026_KEYWORDS = [
     "comelec barmm", "bangsamoro candidates", "bangsamoro voters",
     "bangsamoro poll", "bangsamoro polls", "bangsamoro voter registration",
     "bangsamoro electoral", "bangsamoro parliament seats",
+    "barmm polls", "bangsamoro parliament polls", "barmm voting",
+    "bangsamoro voting", "barmm election results",
+    "bangsamoro election results", "barmm turnout",
+    "first bangsamoro parliamentary elections",
+    "bangsamoro autonomous region parliament election",
 ]
 
 BARMM_KEYWORDS = BARMM_KEYWORDS_BASE + BARMM_ELECTION_2026_KEYWORDS
@@ -57,17 +62,9 @@ REQUEST_HEADERS = {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     ),
-    # A bare User-Agent with nothing else is itself a bot-detection signal
-    # (real browsers always send these too). Added after Inquirer.net,
-    # Manila Bulletin, and ABS-CBN all started returning clean HTTP 403s
-    # (not 404s) -- consistent with basic bot filtering rather than a dead
-    # URL. This may not be enough if it's a full Cloudflare JS challenge
-    # rather than a header check; if these three are still 403ing after
-    # this change, that's the likely explanation and they may just need to
-    # be dropped from SOURCES rather than fought further.
     "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
+    "Accept-Encoding": "gzip, deflate",   # removed "br" -- brotli isn't installed
 }
 
 # All six sources from the original edge function, restored. Two notes
@@ -164,7 +161,7 @@ def _parse_pub_date(entry):
 def _save_if_new(db: Session, title: str, url: str, summary: str, source_name: str, published_date) -> bool:
     if not title or not url:
         return False
-    if not _is_relevant(title, summary):
+    if not _is_election_related(title, summary):
         return False
 
     exists = db.query(NewsArticle).filter(NewsArticle.url == url).first()
@@ -179,11 +176,16 @@ def _save_if_new(db: Session, title: str, url: str, summary: str, source_name: s
         summary=summary[:500] if summary else None,
         keywords=_extract_keywords(title, summary),
         province=_detect_province(title, summary),
-        sentiment_status="pending",   # <-- new; PC worker picks this up
+        # Broad BARMM/regional relevance still decides what gets SAVED
+        # (via _is_relevant() above) -- non-election regional news is kept,
+        # since it may still matter for context later. This flag instead
+        # lets the dashboard/API filter down to election-only coverage on
+        # demand (?election_only=true) without losing the rest for good.
+        is_election_related=_is_election_related(title, summary),
+        sentiment_status="pending",
     )
     db.add(article)
     return True
-
 
 def _scrape_rss_source(client: httpx.Client, source: dict, db: Session) -> tuple[int, int]:
     scraped, skipped = 0, 0

@@ -22,6 +22,8 @@
     const [error, setError] = useState<string | null>(null);
     const [scraping, setScraping] = useState(false);
     const [scrapeMessage, setScrapeMessage] = useState<string | null>(null);
+    const [scrapeErrors, setScrapeErrors] = useState<string[]>([]);
+    const [showScrapeErrors, setShowScrapeErrors] = useState(false);
 
   const fetchData = useCallback(async () => {
       setLoading(true);
@@ -70,22 +72,20 @@
     const handleScrape = async () => {
       setScraping(true);
       setScrapeMessage(null);
+      setScrapeErrors([]);
       try {
-        const response = await fetch(`${API_URL}/api/news/scrape`, {
-          method: "POST"
-        });
-
-        if (!response.ok) throw new Error(`Scrape Failed (${response.status})`);
+        const response = await fetch(`${API_URL}/api/news/scrape`, { method: "POST" });
+        if (!response.ok) throw new Error(`Scrape failed (${response.status})`);
         const result = await response.json();
-        setScrapeMessage(
-          `Scrape ${result.scraped || 0} new articles, skipped ${result.skipped || 0} existing/non-BARMM articles${
-            result.errors ? `. Some source issues ${result.errors.join("; ")}`: ""
-          }
-          `
-        )
-        await fetchData();
-      } catch {
 
+        setScrapeMessage(
+          `Scraped ${result.scraped || 0} new article${result.scraped === 1 ? "" : "s"}` +
+          (result.skipped ? ` (${result.skipped} already seen or not BARMM-related)` : "")
+        );
+        setScrapeErrors(result.errors || []);
+        await fetchData();
+      } catch (err) {
+        setScrapeMessage(err instanceof Error ? err.message : "Scrape failed");
       } finally {
         setScraping(false);
       }
@@ -166,8 +166,25 @@
         </div>
 
         {scrapeMessage && (
-          <div className={`card p-4 text-sm animate-fade-in ${scrapeMessage.startsWith("Error") ? "border-red-200 bg-red-50" : "border-teal-200 bg-teal-50"}`}>
-            <p className={scrapeMessage.startsWith("Error") ? "text-red-700" : "text-teal-700"}>{scrapeMessage}</p>
+          <div className="card p-4 text-sm animate-fade-in border-teal-200 bg-teal-50">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-teal-700">{scrapeMessage}</p>
+              {scrapeErrors.length > 0 && (
+                <button
+                  onClick={() => setShowScrapeErrors((v) => !v)}
+                  className="text-xs text-amber-700 bg-amber-100 px-2 py-1 rounded shrink-0 hover:bg-amber-200 transition-colors"
+                >
+                  {scrapeErrors.length} source issue{scrapeErrors.length === 1 ? "" : "s"} {showScrapeErrors ? "▲" : "▼"}
+                </button>
+              )}
+            </div>
+            {showScrapeErrors && (
+              <ul className="mt-3 space-y-1 text-xs text-slate-500 border-t border-teal-200 pt-3">
+                {scrapeErrors.map((e, i) => (
+                  <li key={i} className="truncate" title={e}>{e.split(":")[0]}</li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 

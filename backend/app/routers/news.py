@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 from app.db import get_db
 from app.models import NewsArticle
+from app.schemas import NewsArticleOut
 from app.services.scraper import scrape_all_sources
 
 router = APIRouter(prefix="/api/news", tags=["news"])
@@ -33,42 +34,16 @@ def trigger_scrape(db: Session = Depends(get_db)):
     return {"scraped": scraped, "skipped": skipped, "errors": errors}
 
 
-@router.get("/articles")
+@router.get("/articles", response_model=list[NewsArticleOut])
 def list_articles(
-    sentiment_status: str | None = Query(None, description="pending | processing | done | failed"),
-    source: str | None = None,
-    limit: int = Query(50, le=200),
-    offset: int = 0,
+    limit: int = 100,
+    election_only: bool = False,
     db: Session = Depends(get_db),
 ):
-    """Paginated, filterable read for the dashboard. Kept lean deliberately
-    (limit capped at 200) since this is what your phone-facing frontend hits."""
     q = db.query(NewsArticle)
-    if sentiment_status:
-        q = q.filter(NewsArticle.sentiment_status == sentiment_status)
-    if source:
-        q = q.filter(NewsArticle.source == source)
-
-    total = q.count()
-    rows = q.order_by(NewsArticle.published_date.desc()).offset(offset).limit(limit).all()
-
-    return {
-        "total": total,
-        "articles": [
-            {
-                "id": a.id,
-                "title": a.title,
-                "url": a.url,
-                "source": a.source,
-                "province": a.province,
-                "published_date": a.published_date,
-                "sentiment_status": a.sentiment_status,
-                "sentiment_label": a.sentiment_label,
-                "sentiment_score": a.sentiment_score,
-            }
-            for a in rows
-        ],
-    }
+    if election_only:
+        q = q.filter(NewsArticle.is_election_related.is_(True))
+    return q.order_by(NewsArticle.published_date.desc()).limit(limit).all()
 
 
 @router.get("/sentiment-status")

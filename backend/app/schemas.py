@@ -40,8 +40,8 @@ class IncidentOut(BaseModel):
     incident_time: datetime.time
     reported_by: Optional[str] = None
     contact_info: Optional[str] = None
-    sentiment_score: float
-    sentiment_label: str
+    sentiment_score: float | None = None
+    sentiment_label: str | None = None
     created_at: datetime.datetime
 
     # lat long
@@ -67,8 +67,9 @@ class NewsArticleOut(BaseModel):
     published_date: Optional[datetime.datetime] = None
     province: Optional[str] = None
     keywords: Optional[list[str]] = None
-    sentiment_score: float
-    sentiment_label: str
+    sentiment_label: str | None = None
+    sentiment_score: float | None = None
+    is_election_related: bool = False
 
 class NewsSourceCreate(BaseModel):
     name: str
