@@ -73,6 +73,10 @@ class ScrapeResult(BaseModel):
     errors: list[str] = []
 
 
+class SentimentAnalyzeRequest(BaseModel):
+    text: str
+
+
 class SentimentPreview(BaseModel):
     score: float
     label: str

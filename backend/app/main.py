@@ -5,11 +5,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 
-from app.routers import auth, articles, incidents, admin, users, news, sources
+from app.routers import auth, articles, incidents, admin, users, news, sources, sentiment
+from app.services.sentiment import load_model
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Pre-load TagaSenti sentiment model into memory on startup
+    load_model()
     yield
 
 
@@ -30,6 +33,7 @@ app.include_router(admin.router)
 app.include_router(users.router)
 app.include_router(news.router)
 app.include_router(sources.router)
+app.include_router(sentiment.router)
 
 @app.get("/api/health")
 def health():
