@@ -193,7 +193,7 @@
           <div className="stat-card">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-slate-500 font-medium">News Articles</span>
-              <Newspaper className="w-5 h-5 text-teal-600" />
+              <Newspaper className="w-5 h-5 text-information" />
             </div>
             <p className="text-3xl font-bold text-slate-900">{totalArticles}</p>
             <p className="text-xs text-slate-400 mt-1">Scraped & analyzed</p>
@@ -231,205 +231,190 @@
           </div>
         </div>
 
-        {/* Charts row */}
+        {/* container for left and right */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Sentiment Distribution */}
-          <div className="card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <BarChart3 className="w-5 h-5 text-teal-600" />
-              <h3 className="font-bold text-slate-900">News Sentiment Distribution</h3>
-            </div>
-            {totalArticles === 0 ? (
-              <p className="text-sm text-slate-400 py-8 text-center">No articles yet. Click "Scrape Latest News" to fetch data.</p>
-            ) : (
-              <div className="space-y-4">
-                {(["positive", "negative", "neutral"] as SentimentLabel[]).map((label) => {
-                  const count = sentimentCounts[label];
-                  const pct = totalArticles > 0 ? (count / totalArticles) * 100 : 0;
-                  const color = label === "positive" ? "bg-green-500" : label === "negative" ? "bg-red-500" : "bg-slate-400";
-                  return (
-                    <div key={label}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-sm font-medium text-slate-700 capitalize">{label}</span>
-                        <span className="text-sm text-slate-500">{count} ({pct.toFixed(1)}%)</span>
-                      </div>
-                      <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${color} rounded-full transition-all duration-700 ease-out`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
+
+            {/* First Row */}
+            {/* Sentiment Distribution */}
+            <div className="card p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 className="w-5 h-5 text-primary" />
+                <h3 className="font-bold text-slate-900">News Sentiment Distribution</h3>
               </div>
-            )}
-          </div>
-
-          {/* Incident Type Distribution */}
-          <div className="card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <AlertTriangle className="w-5 h-5 text-orange-600" />
-              <h3 className="font-bold text-slate-900">Incident Classification</h3>
-            </div>
-            {incidents.length === 0 ? (
-              <p className="text-sm text-slate-400 py-8 text-center">No incidents reported yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {INCIDENT_TYPES.map((type) => {
-                  const count = incidentTypeCounts[type.value] || 0;
-                  const pct = incidents.length > 0 ? (count / incidents.length) * 100 : 0;
-                  return (
-                    <div key={type.value}>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                          <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: type.color }} />
-                          {type.label}
-                        </span>
-                        <span className="text-sm text-slate-500">{count}</span>
-                      </div>
-                      <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-700 ease-out"
-                          style={{ width: `${pct}%`, backgroundColor: type.color }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Province & Severity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-  {/* Province distribution */}
-          <div className="card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <MapPin className="w-5 h-5 text-teal-600" />
-              <h3 className="font-bold text-slate-900">Incidents by Province</h3>
-            </div>
-
-            {/* Choropleth Heatmap */}
-            <div className="mb-5">
-              <ProvinceMap provinceCounts={provinceCounts} />
-            </div>
-
-            {/* Existing progress bar distribution */}
-            {Object.keys(provinceCounts).length === 0 ? (
-              <p className="text-sm text-slate-400 py-8 text-center">No incidents reported yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {Object.entries(provinceCounts)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([province, count]) => {
-                    const pct = (count / incidents.length) * 100;
+              {totalArticles === 0 ? (
+                <p className="text-sm text-slate-400 py-8 text-center">No articles yet. Click "Scrape Latest News" to fetch data.</p>
+              ) : (
+                <div className="space-y-4">
+                  {(["positive", "negative", "neutral"] as SentimentLabel[]).map((label) => {
+                    const count = sentimentCounts[label];
+                    const pct = totalArticles > 0 ? (count / totalArticles) * 100 : 0;
+                    const color = label === "positive" ? "bg-green-500" : label === "negative" ? "bg-red-500" : "bg-slate-400";
                     return (
-                      <div key={province}>
+                      <div key={label}>
                         <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-sm font-medium text-slate-700">{province}</span>
-                          <span className="text-sm text-slate-500">{count}</span>
+                          <span className="text-sm font-medium text-slate-700 capitalize">{label}</span>
+                          <span className="text-sm text-slate-500">{count} ({pct.toFixed(1)}%)</span>
                         </div>
-                        <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-teal-500 rounded-full transition-all duration-700 ease-out"
+                            className={`h-full ${color} rounded-full transition-all duration-700 ease-out`}
                             style={{ width: `${pct}%` }}
                           />
                         </div>
                       </div>
                     );
                   })}
-              </div>
-            )}
-          </div>
-
-          {/* Severity distribution */}
-          <div className="card p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Activity className="w-5 h-5 text-red-600" />
-              <h3 className="font-bold text-slate-900">Incident Severity Levels</h3>
+                </div>
+              )}
             </div>
-            {incidents.length === 0 ? (
-              <p className="text-sm text-slate-400 py-8 text-center">No incidents reported yet.</p>
-            ) : (
-              <div className="grid grid-cols-2 gap-4">
-                {SEVERITY_LEVELS.map((sev) => {
-                  const count = severityCounts[sev.value] || 0;
-                  return (
-                    <div key={sev.value} className="rounded-lg p-4 border-2" style={{ borderColor: `${sev.color}30`, backgroundColor: `${sev.color}08` }}>
-                      <p className="text-2xl font-bold" style={{ color: sev.color }}>{count}</p>
-                      <p className="text-sm font-medium text-slate-600 mt-1">{sev.label}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* Recent activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Recent articles */}
-          <div className="card p-6">
-            <h3 className="font-bold text-slate-900 mb-4">Recent News Articles</h3>
-            {recentArticles.length === 0 ? (
-              <EmptyState title="No articles yet" message="Click 'Scrape Latest News' to fetch BARMM election news." />
-            ) : (
-              <div className="space-y-3">
-                {recentArticles.map((article) => (
-                  <div key={article.id} className="flex items-start gap-3 pb-3 border-b border-slate-100 last:border-0">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-800 line-clamp-2">{article.title}</p>
-                      {article.summary && (
-                        <p className="text-xs text-slate-500 mt-1 line-clamp-2">{article.summary}</p>
-                      )}
-                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <span className="text-xs text-slate-400">{article.source}</span>
-                        <span className="text-xs text-slate-300">•</span>
-                        <span className="text-xs text-slate-400">{formatDate(article.published_date)}</span>
-                        {article.province && (
-                          <>
-                            <span className="text-xs text-slate-300">•</span>
-                            <span className="inline-flex items-center gap-1 text-xs text-slate-500">
-                              <MapPin className="w-3 h-3" />
-                              {article.province}
-                            </span>
-                          </>
+            {/* Severity distribution */}
+            <div className="card p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Activity className="w-5 h-5 text-red-600" />
+                <h3 className="font-bold text-slate-900">Incident Severity Levels</h3>
+              </div>
+              {incidents.length === 0 ? (
+                <p className="text-sm text-slate-400 py-8 text-center">No incidents reported yet.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  {SEVERITY_LEVELS.map((sev) => {
+                    const count = severityCounts[sev.value] || 0;
+                    return (
+                      <div key={sev.value} className="rounded-lg p-4 border-2" style={{ borderColor: `${sev.color}30`, backgroundColor: `${sev.color}08` }}>
+                        <p className="text-2xl font-bold" style={{ color: sev.color }}>{count}</p>
+                        <p className="text-sm font-medium text-slate-600 mt-1">{sev.label}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Second Row */}
+            {/* Recent articles */}
+            <div className="card p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Newspaper className="w-5 h-5 text-information" />
+                <h3 className="font-bold text-slate-900">Recent News Articles</h3>
+              </div>
+              {recentArticles.length === 0 ? (
+                <EmptyState title="No articles yet" message="Click 'Scrape Latest News' to fetch BARMM election news." />
+              ) : (
+                <div className="space-y-3">
+                  {recentArticles.map((article) => (
+                    <div key={article.id} className="flex items-start gap-3 pb-3 border-b border-slate-100 last:border-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800 line-clamp-2">{article.title}</p>
+                        {article.summary && (
+                          <p className="text-xs text-slate-500 mt-1 line-clamp-2">{article.summary}</p>
                         )}
-                        <SentimentBadge label={article.sentiment_label} />
+                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                          <span className="text-xs text-slate-400">{article.source}</span>
+                          <span className="text-xs text-slate-300">•</span>
+                          <span className="text-xs text-slate-400">{formatDate(article.published_date)}</span>
+                          {article.province && (
+                            <>
+                              <span className="text-xs text-slate-300">•</span>
+                              <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                                <MapPin className="w-3 h-3" />
+                                {article.province}
+                              </span>
+                            </>
+                          )}
+                          <SentimentBadge label={article.sentiment_label} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          {/* Recent incidents */}
-          <div className="card p-6">
-            <h3 className="font-bold text-slate-900 mb-4">Recent Incident Reports</h3>
-            {recentIncidents.length === 0 ? (
-              <EmptyState title="No incidents yet" message="Incident reports submitted by the community will appear here." />
-            ) : (
-              <div className="space-y-3">
-                {recentIncidents.map((incident) => (
-                  <div key={incident.id} className="flex items-start gap-3 pb-3 border-b border-slate-100 last:border-0">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-800 line-clamp-2">{incident.title}</p>
-                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <span className="text-xs text-slate-400">{incident.province}</span>
-                        <span className="text-xs text-slate-300">•</span>
-                        <span className="text-xs text-slate-400">{formatDate(incident.incident_date)}</span>
-                        <SentimentBadge label={incident.sentiment_label} />
-                      </div>
-                    </div>
+
+            <div className="flex flex-col gap-6">
+              {/* Incident Type Distribution */}
+              <div className="card p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <AlertTriangle className="w-5 h-5 text-orange-600" />
+                  <h3 className="font-bold text-slate-900">Incident Classification</h3>
+                </div>
+                {incidents.length === 0 ? (
+                  <p className="text-sm text-slate-400 py-8 text-center">No incidents reported yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {INCIDENT_TYPES.map((type) => {
+                      const count = incidentTypeCounts[type.value] || 0;
+                      const pct = incidents.length > 0 ? (count / incidents.length) * 100 : 0;
+                      return (
+                        <div key={type.value}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: type.color }} />
+                              {type.label}
+                            </span>
+                            <span className="text-sm text-slate-500">{count}</span>
+                          </div>
+                          <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-700 ease-out"
+                              style={{ width: `${pct}%`, backgroundColor: type.color }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
+
+              {/* Province distribution */}
+              <div className="card p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <MapPin className="w-5 h-5 text-warning" />
+                  <h3 className="font-bold text-slate-900">Incidents by Province</h3>
+                </div>
+
+                {/* Choropleth Heatmap */}
+                <div className="mb-5">
+                  <ProvinceMap provinceCounts={provinceCounts} />
+                </div>
+
+                {/* Existing progress bar distribution */}
+                {Object.keys(provinceCounts).length === 0 ? (
+                  <p className="text-sm text-slate-400 py-8 text-center">No incidents reported yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {Object.entries(provinceCounts)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([province, count]) => {
+                        const pct = (count / incidents.length) * 100;
+                        return (
+                          <div key={province}>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-sm font-medium text-slate-700">{province}</span>
+                              <span className="text-sm text-slate-500">{count}</span>
+                            </div>
+                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+              
+            </div>
+
+
+
         </div>
+
+      
       </div>
     );
   }

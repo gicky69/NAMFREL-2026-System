@@ -9,7 +9,7 @@ import Dashboard from "@/components/Dashboard";
 import NewsFeed from "@/components/NewsFeed";
 import ReportIncident from "@/components/ReportIncident";
 import IncidentsList from "@/components/IncidentsList";
-import logo from "@/assets/apc-logo.png";
+import logo from "@/assets/web-logo.png";
 import Admin from "@/components/Admin";
 
 type Page = "dashboard" | "news" | "report" | "incidents" | "admin";
@@ -80,99 +80,141 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+
       {/* Header */}
-      <header className="header bg-primary text-white sticky top-0 z-50 shadow-lg h-20">
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center gap-3">
-              {/* Logo */}
-              <div className="w-12 h-12">
-                <img src={logo} alt="Logo" className="w-12 h-12" />
-              </div>
+      <header className="relative bg-primary text-white sticky top-0 z-50 shadow-lg">
+
+        {/* Main Header */}
+        <div className="h-20 bg-primary">
+          <div className="max-w-8xl mx-auto h-full">
+
+            <div className="flex items-center justify-end h-full px-4 sm:justify-between sm:pl-56 sm:pr-6 lg:pr-8">
 
               {/* Title */}
-              <div>
-                <h1 className="text-xl text-white font-bold leading-tight">Incident Reporting & Sentiment Analysis</h1>
-                <p className="text-xs text-white font-bold hidden sm:block">BARMM 2026 Elections</p>
+              <div className="hidden sm:block">
+                <h1 className="text-xl font-bold leading-tight">
+                  Incident Reporting & Sentiment Analysis
+                </h1>
+
+                <p className="text-xs font-bold hidden sm:block text-white/90">
+                  BARMM 2026 Elections
+                </p>
               </div>
-            </div>
 
-            {/* Desktop Nav */}
-            <div className="hidden md:flex items-center gap-3">
-              <nav className="flex items-center gap-1">
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => navigate(item.id)}
-                      className={`nav-item flex items-center gap-1 px-3 py-1 rounded-lg text-base font-medium ${
-                        page === item.id ? "active text-white bg-primary-dark" : "text-white"
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {item.label}
-                    </button>
-                  );
-                })}
-              </nav>
+              {/* Desktop Nav */}
+              <div className="hidden md:flex items-center gap-3">
+                <nav className="flex items-center gap-1">
+                  {navItems.map((item) => {
+                    const Icon = item.icon;
 
-              {/* User Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-1 p-2 rounded-lg hover:bg-primary-dark transition-all duration-200"
-                >
-                  <CircleUser className="w-6 h-6" />
-                  <ChevronDown className="w-4 h-4" />
-                </button>
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => navigate(item.id)}
+                        className={`nav-item flex items-center gap-1 px-3 py-1 rounded-lg text-base font-medium ${
+                          page === item.id
+                            ? "active text-white"
+                            : "text-white"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </nav>
 
-                {userMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden text-slate-700 z-50">
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                      }}
-                      className="flex items-center gap-3 w-full px-4 py-3 text-sm hover:bg-slate-100 transition-colors"
-                    >
-                      <User className="w-4 h-4" />
-                      Profile
-                    </button>
+                {/* User Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center gap-1 p-2 rounded-lg hover:bg-primary-dark transition-all duration-200"
+                  >
+                    <CircleUser className="w-6 h-6" />
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
 
-                    <div className="border-t border-slate-200" />
+                  {userMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden text-slate-700 z-50">
 
-                    <button
-                      onClick={() => {
-                        handleLogout();
-                        setUserMenuOpen(false);
-                      }}
-                      className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Logout
-                    </button>
-                  </div>
-                )}
+                      <div className="border-t border-slate-200" />
+
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setUserMenuOpen(false);
+                        }}
+                        className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Logout
+                      </button>
+
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-primary-dark transition-all duration-200"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden p-2 rounded-lg hover:bg-primary-dark"
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen
+                  ? <X className="w-5 h-5" />
+                  : <Menu className="w-5 h-5" />
+                }
+              </button>
+
+            </div>
           </div>
         </div>
 
-        {/* Mobile Nav */}
+        {/* red Line */}
+        <div className="h-1.5 bg-red-500" />
+
+        {/* logo panel container*/}
+        <div className="absolute top-0 left-0 z-30">
+          
+          {/* shadow */}
+          <div className="drop-shadow-xl">
+            
+            {/* actual logo panel */}
+            <div
+              className="
+                w-44
+                sm:w-52
+                h-24
+                sm:h-28
+                bg-white
+                flex
+                items-center
+                justify-center
+              "
+              style={{
+                clipPath: "polygon(0 0, 100% 0, 86% 100%, 0 100%)"
+              }}
+            >
+              <img
+                src={logo}
+                alt="School of Engineering"
+                className="w-[170px] sm:w-[200px] h-auto object-contain mr-5"
+              />
+            </div>
+
+          </div>
+        </div>
+
+        {/* Mobile Navigation */}
         {mobileMenuOpen && (
-          <nav className="md:hidden bg-primary border-t border-primary-dark animate-fade-in">
+          <nav className="md:hidden bg-primary border-t border-primary-dark animate-fade-in relative z-20">
             <div className="px-4 py-3 space-y-1">
+
+              {/* Navigation Items */}
               {navItems.map((item) => {
                 const Icon = item.icon;
+
                 return (
                   <button
                     key={item.id}
@@ -180,7 +222,7 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
                     className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
                       page === item.id
                         ? "bg-primary-dark text-white"
-                        : "text-white hover:bg-primary-dark hover:text-white"
+                        : "text-white hover:bg-primary-dark"
                     }`}
                   >
                     <Icon className="w-4 h-4" />
@@ -188,9 +230,26 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
                   </button>
                 );
               })}
+
+              {/* Divider */}
+              <div className="border-t border-white/20 my-2" />
+
+              {/* Logout */}
+              <button
+                onClick={() => {
+                  handleLogout();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-red-200 hover:bg-red-500/20 hover:text-red-100 transition-all duration-200"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
+
             </div>
           </nav>
         )}
+
       </header>
 
       {/* Main content */}
@@ -208,7 +267,7 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
       <footer className="bg-slate-800 text-slate-400 py-6 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm">
           <p>BARMM Election Monitor — Bangsamoro Autonomous Region in Muslim Mindanao</p>
-          <p className="text-xs mt-1 text-slate-500">Community-driven election monitoring platform</p>
+          <p className="text-xs mt-1 text-slate-500">By Team AI - Asia Pacific College - 2026</p>
         </div>
       </footer>
     </div>

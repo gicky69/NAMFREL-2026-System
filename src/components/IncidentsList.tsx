@@ -310,7 +310,6 @@ export default function IncidentsList() {
       }
       const data: Incident[] = await res.json();
       setIncidents(data);
-      console.log("Fetched incidents:", data);  
     } catch (err) {
       setError(err instanceof Error ? err.message: "Failed to load incidents");
     } finally {

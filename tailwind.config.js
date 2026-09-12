@@ -12,6 +12,7 @@ export default {
           light: "#3b1aa8",
           dark: "#10004d",
         },
+        information: "#3b82f6",
         accent: "#f59e0b",
         danger: "#dc2626",
         success: "#16a34a",

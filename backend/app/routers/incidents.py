@@ -62,7 +62,7 @@ def create_incident(
 
 @router.get("/incident-types", response_model=list[IncidentCategoryOut])
 def list_incident_types(
-    profile: Profile = Depends(require_roles("admin", "personnel")),
+    profile: Profile = Depends(require_roles("admin", "personnel", "super_admin")),
     db: Session = Depends(get_db)
 ):
     return db.query(IncidentCategory).all()
@@ -72,7 +72,7 @@ def list_incident_types(
 def update_incident_status(
     id: str,
     payload: IncidentStatusUpdate,
-    profile: Profile = Depends(require_roles("admin", "personnel")),
+    profile: Profile = Depends(require_roles("admin", "personnel", "super_admin")),
     db: Session = Depends(get_db),
 ):
     incident = db.query(Incident).filter(Incident.id == id).first()

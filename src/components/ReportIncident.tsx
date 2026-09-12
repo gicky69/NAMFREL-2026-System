@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, CheckCircle, FileWarning } from "lucide-react";
+import { Send, CheckCircle, FileWarning, AlertTriangle } from "lucide-react";
 import { analyzeSentiment } from "@/lib/sentiment";
 import type { NewIncident } from "@/types";
 import { ORGANIZATIONS, type Organization } from "@/types";
@@ -48,6 +48,8 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
   const [error, setError] = useState<string | null>(null);
   const [liveSentiment, setLiveSentiment] = useState<{ score: number; label: string } | null>(null);
   const sentimentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [showLocationAlert, setShowLocationAlert] = useState(false);
 
   const isFormValid =
     formData.title.trim() !== "" &&
@@ -278,8 +280,39 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
     fetchIncidentTypes();
   }, []);
   
+  // popup message everytime the user visits the page, informing them that location is optional
+  useEffect(() => {
+    setShowLocationAlert(true);
+    const timer = setTimeout(() => {
+      setShowLocationAlert(false);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
+    <>
     <div className="max-w-3xl mx-auto space-y-6">
+          {/* Page-wide Notice */}
+
+      {showLocationAlert && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+
+            <div>
+              <h3 className="font-semibold text-amber-900">
+                Important Notice
+              </h3>
+
+              <p className="mt-1 text-sm text-amber-800">
+                This tab asks for your location (longitude and latitude) to provide context for your report. 
+                Your location is optional, and you can choose to deny access if you prefer.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Report an Election Incident</h2>
@@ -558,5 +591,7 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
         </div>
       </form>
     </div>
+
+    </>
   );
 }
