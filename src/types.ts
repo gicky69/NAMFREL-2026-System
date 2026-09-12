@@ -74,9 +74,7 @@ export interface Incident {
   province: string;
   municipality: string | null;
   incident_date: string;
-  incident_hour: string;
-  incident_minute: string;
-  incident_period: "AM" | "PM";
+  incident_time: string;
   reported_by: string | null;
   contact_info: string | null;
   status: IncidentStatus;
