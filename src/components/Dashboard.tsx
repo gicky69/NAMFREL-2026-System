@@ -98,10 +98,13 @@
     const { articles, incidents } = data;
 
     // Sentiment distribution
+    const analyzedArticles = articles.filter((a) => a.sentiment_status === "done");
+
     const sentimentCounts = { positive: 0, negative: 0, neutral: 0 } as Record<SentimentLabel, number>;
-    articles.forEach((a) => sentimentCounts[a.sentiment_label]++);
-    const totalArticles = articles.length;
-    
+    analyzedArticles.forEach((a) => sentimentCounts[a.sentiment_label!]++);
+
+    const totalArticles = articles.length; // keep this as the real total for the "News Articles" stat card
+
     // Incident type distribution
     const incidentTypeCounts: Record<string, number> = {};
     incidents.forEach((i) => {
@@ -126,8 +129,8 @@
     });
 
     // Average sentiment
-    const avgSentiment = totalArticles > 0
-      ? articles.reduce((sum, a) => sum + a.sentiment_score, 0) / totalArticles
+    const avgSentiment = analyzedArticles.length > 0
+      ? analyzedArticles.reduce((sum, a) => sum + a.sentiment_score, 0) / analyzedArticles.length
       : 0;
 
     // Source distribution

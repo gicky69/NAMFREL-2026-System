@@ -59,7 +59,8 @@ export interface NewsArticle {
   published_date: string | null;
   summary: string | null;
   sentiment_score: number;
-  sentiment_label: SentimentLabel;
+  sentiment_label: SentimentLabel | null;
+  sentiment_status: SentimentStatus;
   keywords: string[];
   province: string | null;
   scraped_at: string;

@@ -171,21 +171,15 @@ def _save_if_new(db: Session, title: str, url: str, summary: str, source_name: s
     if exists:
         return False
 
-    full_text = f"{title} {summary}"
-    score, label = analyze_sentiment(full_text)
-
     article = NewsArticle(
         title=title,
         url=url,
         source=source_name,
-        sentiment_score=score,
-        sentiment_label=label,
         published_date=published_date,
         summary=summary[:500] if summary else None,
-        # keywords is NOT NULL in the DB -- always pass a list (possibly
-        # empty), never None, or every insert fails with NotNullViolation.
         keywords=_extract_keywords(title, summary),
         province=_detect_province(title, summary),
+        sentiment_status="pending",   # <-- new; PC worker picks this up
     )
     db.add(article)
     return True

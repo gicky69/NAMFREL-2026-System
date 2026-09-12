@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import type { NewsArticle, SentimentLabel } from "@/types";
 import { LoadingSpinner, ErrorState, EmptyState } from "@/components/States";
 import { SentimentBadge } from "@/components/SentimentBadge";
+import { SentimentStatusBadge } from "@/components/SentimentStatusBadge";
 import { formatDate } from "@/lib/sentiment";
 
 export default function NewsFeed() {
@@ -172,7 +173,11 @@ export default function NewsFeed() {
                         {article.province}
                       </span>
                     )}
-                    <SentimentBadge label={article.sentiment_label} score={article.sentiment_score} />
+                    {article.sentiment_status === "done" ? (
+                      <SentimentBadge label={article.sentiment_label} />
+                    ) : (
+                      <SentimentStatusBadge status={article.sentiment_status} />
+                    )}
                   </div>
                   <h3 className="font-bold text-slate-900 mb-2 leading-snug">{article.title}</h3>
                   {article.summary && (
