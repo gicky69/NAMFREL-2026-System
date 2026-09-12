@@ -3,9 +3,7 @@ import { Users, AlertTriangle, Tags, Globe, Check, X, Plus } from 'lucide-react'
 import { auth } from "@/lib/firebase";
 import { supabase } from '@/lib/supabase';
 import { UserProfile, Incident, IncidentCategory, NewsSource } from '@/types';
-
-import { createPortal } from "react-dom";
-
+import { getIdToken } from 'firebase/auth';
 
 type TabType = 'users' | 'reports' | 'categories' | 'sources';
 
@@ -22,12 +20,16 @@ export default function Admin() {
   const [reports, setReports] = useState<Incident[]>([]);
   const [categories, setCategories] = useState<IncidentCategory[]>([]);
   const [sources, setSources] = useState<NewsSource[]>([]);
+  const [newSourceName, setNewSourceName] = useState("");
+  const [newSourceURL, setNewSourceURL] = useState("");
 
   const [newCategory, setNewCategory] = useState('');
   const [newSource, setNewSource] = useState('');
 
-  const [statusMessage, setStatusMessage] = useState("");
-  const [showStatusPage, setShowStatusPage] = useState(false);
+  // Success message states
+  const [successMessage, setSuccessMessage] = useState("");
+  const [showSuccessPage, setShowSuccessPage] = useState(false);
+  
 
   useEffect(() => {
     fetchUsers();
@@ -70,23 +72,14 @@ export default function Admin() {
   }, [API_URL]);
 
   const fetchCategories = async () => {
-    try {
-      const token = await auth.currentUser?.getIdToken();
-      const response = await fetch(`${API_URL}/admin/categories`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!response.ok) throw new Error("Failed to fetch categories");
-      const data = await response.json();
-      setCategories(data);
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-    }
+    const { data, error } = await supabase.from('incident_categories').select('*');
+    if (!error && data) setCategories(data);
   };
 
-  const fetchSources = async () => {
-    const { data, error } = await supabase.from('news_sources').select('*');
-    if (!error && data) setSources(data);
-  };
+  const fetchSources = useCallback(async () => {
+    const res = await fetch(`${API_URL}/api/sources`);
+    if (res.ok) setSources(await res.json());
+  }, []);
 
   const handleVerifyUser = async (id: string, newRole: string) => {
     try {
@@ -102,16 +95,7 @@ export default function Admin() {
         },
         body: JSON.stringify({ role: newRole, is_verified: true }),
       });
-      if (!response.ok) {
-        setStatusMessage(`Failed to update user (${response.status})`);
-        setShowStatusPage(true);
-
-        setTimeout(() => {
-          setShowStatusPage(false);
-        }, 3000);
-
-        throw new Error("Failed to update user");
-      }
+      if (!response.ok) throw new Error("Failed to update user");
 
       const updatedUser = await response.json();
       setUsers((currentUsers) =>
@@ -121,12 +105,12 @@ export default function Admin() {
       );
 
       // Show success message
-      setStatusMessage(`User successfully updated to ${updatedUser.role}.`);
-      setShowStatusPage(true);
+      setSuccessMessage(`User successfully updated to ${updatedUser.role}.`);
+      setShowSuccessPage(true);
 
       // Automatically hide after 3 seconds
       setTimeout(() => {
-        setShowStatusPage(false);
+        setShowSuccessPage(false);
       }, 3000);
 
     } catch (error) {
@@ -141,9 +125,12 @@ export default function Admin() {
   const handleVerifyReport = async (id: string, isVerified: boolean) => {
     const newStatus = isVerified ? 'verified' : 'rejected';
     try {
+      const token = await auth.currentUser?.getIdToken();
       const res = await fetch(`${API_URL}/api/incidents/${id}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, 
+         },
         body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) throw new Error(`Failed to update report (${res.status})`);
@@ -159,123 +146,69 @@ export default function Admin() {
     }
   };
 
-  // #region Incident Categories tab handlers
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategory) return;
 
-    try {
-      const token = await auth.currentUser?.getIdToken();
-      const response = await fetch(`${API_URL}/admin/categories`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ name: newCategory }),
-      });
-      if (!response.ok) {
-        setStatusMessage(`Failed to add category (${response.status})`);
-        setShowStatusPage(true);
-        setTimeout(() => {
-          setShowStatusPage(false);
-        }, 3000);
-        throw new Error("Failed to add category");
-      } 
-
-      const addedCategory = await response.json();
-      setCategories([...categories, addedCategory]);
-      setNewCategory('');
-
-      setStatusMessage(`"${addedCategory.name}" was successfully added in the list.`);
-      setShowStatusPage(true);
-
-      setTimeout(() => {
-        setShowStatusPage(false);
-      }, 3000);
-
-
-    } catch (error) {
-      console.error("Error adding category:", error);
-    }
-  };
-
-  const handleDeleteCategory = async (categoryName: string) => {
-    try {
-      const token = await auth.currentUser?.getIdToken();
-
-      const response = await fetch(
-        `${API_URL}/admin/categories/${encodeURIComponent(categoryName)}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to delete category");
-      }
-
-      // Remove the deleted category from the UI
-      setCategories((currentCategories) =>
-        currentCategories.filter(
-          (category) => category.name !== categoryName
-        )
-      );
-      
-
-      setStatusMessage(`"${categoryName}" was successfully deleted.`);
-      setShowStatusPage(true);
-
-      setTimeout(() => {
-        setShowStatusPage(false);
-      }, 3000);
-
-    } catch (error) {
-      console.error("Error deleting category:", error);
-      alert("Failed to delete category.");
-    }
-  };
-  // #endregion
-
-  // #region News Sources tab handlers
-  const handleAddSource = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSource) return;
-
     const { data, error } = await supabase
-      .from('news_sources')
-      .insert([{ name: new URL(newSource).hostname, url: newSource }])
+      .from('incident_categories')
+      .insert([{ name: newCategory }])
       .select();
 
     if (!error && data) {
-      setSources([...sources, data[0]]);
-      setNewSource('');
+      setCategories([...categories, data[0]]);
+      setNewCategory('');
     } else {
-      console.error('Error adding source:', error);
+      console.error('Error adding category:', error);
     }
+  };
+
+  const handleDeleteCategory = async (categoryToDelete: string) => {
+    const { error } = await supabase
+      .from('incident_categories')
+      .delete()
+      .eq('name', categoryToDelete);
+
+    if (!error) {
+      setCategories(categories.filter((cat) => cat.name !== categoryToDelete));
+    } else {
+      console.error('Error deleting category:', error);
+    }
+  };
+
+  const handleAddSource = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSourceName || !newSourceURL) return;
+    const token = await auth.currentUser?.getIdToken();
+    const rest = await fetch(`${API_URL}/api/sources`, {
+      method: "POST",
+      headers: {
+        "Content-type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ name: newSourceName, url: newSourceURL}),
+    });
+    if (!rest.ok) {
+      console.error("Failed to add source", rest.status);
+      return
+    }
+
+    setNewSourceName("");
+    setNewSourceURL("");
+    await fetchSources();
   };
 
   const handleDeleteSource = async (id: string) => {
-    const { error } = await supabase
-      .from('news_sources')
-      .delete()
-      .eq('id', id);
+    const token = await auth.currentUser?.getIdToken();
+    const res = await fetch(`${API_URL}/api/sources/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}`},
+    });
 
-    if (!error) {
-      setSources(sources.filter((source) => source.id !== id));
-    } else {
-      console.error('Error deleting source:', error);
-    }
+    if (res.ok) await fetchSources();
   };
 
-  // #endregion
-
   return (
-
-    <>
     
     <div className="max-w-7xl mx-auto p-6">
       <h1 className="text-3xl font-bold text-gray-900 mb-8">Admin Dashboard</h1>
@@ -304,49 +237,54 @@ export default function Admin() {
 
       <div className="bg-white rounded-lg shadow p-6 border border-gray-100">
         
-      {/* USERS TAB */}
+        {/* USERS TAB */}
         {activeTab === 'users' && (
           <div>
             <h2 className="text-xl font-semibold mb-4">User Management</h2>
             <div className="divide-y divide-gray-200">
-              {users.map((user) => (
-                <div key={user.id} className="py-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">{user.full_name || user.email}</p>
-                    <p className="text-sm text-gray-500">Current Role: <span className="font-semibold">{user.role}</span></p>
+              {users.map((user) => {
+                const isSuperAdmin = user.role === 'super_admin';
+                
+                return (
+                  <div key={user.id} className="py-4 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {user.full_name || user.email} {isSuperAdmin && <span className="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-semibold">Super Admin</span>}
+                      </p>
+                      <p className="text-sm text-gray-500">Current Role: <span className="font-semibold">{user.role}</span></p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => handleVerifyUser(user.id, 'admin')}
+                        className="px-4 py-2 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={user.role === 'admin' || isSuperAdmin}
+                      >
+                        Make Admin
+                      </button>
+                      
+                      <button 
+                        onClick={() => handleVerifyUser(user.id, 'personnel')}
+                        disabled={user.role === 'personnel' || isSuperAdmin}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+                          user.role === 'personnel' || isSuperAdmin
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                        }`}
+                      >
+                        Make Personnel
+                      </button>
+                      
+                      <button 
+                        onClick={() => handleVerifyUser(user.id, 'public')}
+                        className="px-4 py-2 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={user.role === 'public' || isSuperAdmin}
+                      >
+                        Make Public
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex space-x-2">
-                    {/* NEW: Make Admin But ton */}
-                    <button 
-                      onClick={() => handleVerifyUser(user.id, 'admin')}
-                      className="px-4 py-2 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={user.role === 'admin'}
-                    >
-                      Make Admin
-                    </button>
-                    
-                    <button 
-                      onClick={() => handleVerifyUser(user.id, 'personnel')}
-                      disabled={user.role === 'personnel'}
-                      className={`px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
-                      user.role === 'personnel'
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                    }`}
-                    >
-                      Make Personnel
-                    </button>
-                    
-                    <button 
-                      onClick={() => handleVerifyUser(user.id, 'public')}
-                      className="px-4 py-2 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={user.role === 'public'}
-                    >
-                      Make Public
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -423,18 +361,25 @@ export default function Admin() {
           <div>
             <h2 className="text-xl font-semibold mb-4">Scraper News Sources</h2>
             <form onSubmit={handleAddSource} className="flex space-x-4 mb-6">
-              <input
-                type="url"
-                value={newSource}
-                onChange={(e) => setNewSource(e.target.value)}
-                placeholder="https://example-news.com/feed"
-                className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
-              />
-              <button type="submit" className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-                <Plus size={20} />
-                <span>Add Source</span>
-              </button>
-            </form>
+            <input
+              type="text"
+              value={newSourceName}
+              onChange={(e) => setNewSourceName(e.target.value)}
+              placeholder="Source name"
+              className="w-1/3 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
+            />
+            <input
+              type="url"
+              value={newSourceURL}
+              onChange={(e) => setNewSourceURL(e.target.value)}
+              placeholder="https://example-news.com/feed"
+              className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
+            />
+            <button type="submit" className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+              <Plus size={20} />
+              <span>Add Source</span>
+            </button>
+          </form>
             <ul className="divide-y divide-gray-200">
               {sources.map((source) => (
                 <li key={source.id} className="py-3 flex items-center justify-between text-gray-700">
@@ -455,38 +400,48 @@ export default function Admin() {
         )}
 
       </div>
-    </div>
 
-      {showStatusPage &&
-      createPortal(
-        <div className="fixed bottom-6 right-6 z-[999999]">
-          <div className="flex items-center gap-4 rounded-xl border border-green-200 bg-white px-5 py-4 shadow-2xl min-w-[400px]">
+        {showSuccessPage && (
+        <div className="fixed inset-0 z-[9999] flex items-start justify-center bg-white/70 pt-10 px-6">
 
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-green-100">
-              <Check className="h-6 w-6 text-green-600" />
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 text-center shadow-2xl border border-slate-200 animate-fade-in">
+
+            {/* Success Icon */}
+            <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
+              <svg
+                className="h-8 w-8 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
             </div>
 
-            <div className="flex-1">
-              <h3 className="font-semibold text-slate-900">
-                Success!
-              </h3>
+            <h1 className="text-xl font-bold text-slate-900">
+              Successfully Updated!
+            </h1>
 
-              <p className="text-sm text-slate-500">
-                {statusMessage}
-              </p>
-            </div>
+            <p className="mt-2 text-sm text-slate-500">
+              {successMessage}
+            </p>
 
             <button
-              onClick={() => setShowStatusPage(false)}
-              className="text-slate-400 hover:text-slate-700"
+              onClick={() => setShowSuccessPage(false)}
+              className="mt-6 w-full rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
             >
-              <X className="h-5 w-5" />
+              Continue
             </button>
 
           </div>
-        </div>,
-        document.body
+        </div>
       )}
-    </>
+
+    </div>
   );
 }

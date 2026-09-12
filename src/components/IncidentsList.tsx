@@ -24,7 +24,7 @@ export default function IncidentsList() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/incidents`);
+      const res = await fetch(`${API_URL}/api/incidents?status=verified`);
       if (!res.ok) {
         let detail= `Request failed with status ${res.status}`;
         try {
