@@ -5,11 +5,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 
-from app.routers import auth, articles, incidents, admin, users, news, sources
+from app.routers import auth, articles, incidents, admin, users, news, sources, sentiment
+from app.services.sentiment import load_model
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Pre-load TagaSenti sentiment model into memory on startup
+    load_model()
     yield
 
 
@@ -17,7 +20,11 @@ app = FastAPI(title="BARMM Election Monitor API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=[
+        "http://localhost:5173",   # Vite dev server
+        "http://127.0.0.1:5173",
+        "https://namfrel-2026-system.onrender.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -30,6 +37,7 @@ app.include_router(admin.router)
 app.include_router(users.router)
 app.include_router(news.router)
 app.include_router(sources.router)
+app.include_router(sentiment.router)
 
 @app.get("/api/health")
 def health():

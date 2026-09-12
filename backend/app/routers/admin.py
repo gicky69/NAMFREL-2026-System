@@ -18,7 +18,6 @@ class ChangeRoleRequest(BaseModel):
 
 class AddCategoryRequest(BaseModel):
     name: str
-    description: str | None = None
 
 # patch role endpoint
 @router.patch("/profiles/{user_id}/role")
@@ -52,7 +51,7 @@ def change_role(
         raise HTTPException(status_code=403, detail="Profile not found")
 
     # Only admin can change roles
-    if requester.role != "admin" and requester.role != "super_admin":
+    if requester.role not in ["admin", "super_admin"]:
         raise HTTPException(status_code=403, detail="You are not authorized to change roles")
 
     # Find the user selected in User Management
@@ -64,10 +63,6 @@ def change_role(
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-
-    # PROTECT SUPER ADMIN: Prevent modifying a Super Admin unless requester is also a super_admin
-    if user.role == "super_admin" and requester.role != "super_admin":
-        raise HTTPException(status_code=403, detail="Only a Super Admin can modify another Super Admin.")
 
     # Change the selected user's role
     user.role = payload.role
@@ -113,7 +108,7 @@ def get_users(
         raise HTTPException(status_code=403, detail="Profile not found")
 
     # Only admins can access the user list
-    if requester.role != "admin":
+    if requester.role not in ["admin", "super_admin"]:
         raise HTTPException(status_code=403, detail="You are not authorized to view users")
 
     # Get all users
@@ -160,7 +155,7 @@ def get_categories(
     
     )
 
-    if not requester or requester.role != "admin":
+    if requester.role not in ["admin", "super_admin"]:
         raise HTTPException(status_code=403, detail="You are not authorized to obtain categories")
 
     # Get all categories
@@ -204,7 +199,7 @@ def add_category(
     
     )
 
-    if not requester or requester.role != "admin":
+    if not requester or requester.role not in ["admin", "super_admin"]:
         raise HTTPException(status_code=403, detail="You are not authorized to add categories")
     
     # check if category already exists
@@ -218,7 +213,7 @@ def add_category(
         raise HTTPException(status_code=400, detail="Category already exists")
 
     # create new category
-    new_category = IncidentCategory(name=payload.name, description=payload.description)
+    new_category = IncidentCategory(name=payload.name)
     db.add(new_category)
     db.commit()
     db.refresh(new_category)
@@ -252,7 +247,7 @@ def delete_category(
     
     )
 
-    if not requester or requester.role != "admin":
+    if not requester or requester.role not in ["admin", "super_admin"]:
         raise HTTPException(status_code=403, detail="You are not authorized to add categories")
     
     category = (

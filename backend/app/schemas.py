@@ -2,6 +2,7 @@ import datetime
 import uuid
 from typing import Optional
 
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -13,8 +14,15 @@ class IncidentCreate(BaseModel):
     province: str
     municipality: Optional[str] = None
     incident_date: datetime.date
+    incident_time: datetime.time
     reported_by: Optional[str] = None
+    organization: Optional[str] = None
     contact_info: Optional[str] = None
+
+    # report approx location
+    reporter_latitude: Optional[float] = None
+    reporter_longitude: Optional[float] = None
+    reporter_location_accuracy: Optional[float] = None
 
 
 class IncidentOut(BaseModel):
@@ -29,10 +37,19 @@ class IncidentOut(BaseModel):
     province: str
     municipality: Optional[str] = None
     incident_date: datetime.date
+    incident_time: datetime.time
     reported_by: Optional[str] = None
     contact_info: Optional[str] = None
-    sentiment_score: float
-    sentiment_label: str
+    sentiment_score: float | None = None
+    sentiment_label: str | None = None
+    created_at: datetime.datetime
+
+    # lat long
+    reporter_latitude: Optional[float] = None
+    reporter_longitude: Optional[float] = None
+    
+class IncidentCategoryOut(BaseModel):
+    name: str
     created_at: datetime.datetime
     
 class IncidentStatusUpdate(BaseModel):
@@ -50,8 +67,9 @@ class NewsArticleOut(BaseModel):
     published_date: Optional[datetime.datetime] = None
     province: Optional[str] = None
     keywords: Optional[list[str]] = None
-    sentiment_score: float
-    sentiment_label: str
+    sentiment_label: str | None = None
+    sentiment_score: float | None = None
+    is_election_related: bool = False
 
 class NewsSourceCreate(BaseModel):
     name: str
@@ -71,6 +89,10 @@ class ScrapeResult(BaseModel):
     scraped: int
     skipped: int
     errors: list[str] = []
+
+
+class SentimentAnalyzeRequest(BaseModel):
+    text: str
 
 
 class SentimentPreview(BaseModel):

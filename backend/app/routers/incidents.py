@@ -1,20 +1,30 @@
-from fastapi import APIRouter, Depends, Query, HTTPException
+from uuid import UUID
+from fastapi import APIRouter, Depends, Query, HTTPException, Request
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Incident
-from app.schemas import IncidentCreate, IncidentOut, IncidentStatusUpdate
+from app.models import Incident, IncidentCategory, Profile
+from app.schemas import IncidentCreate, IncidentOut, IncidentStatusUpdate, IncidentCategoryOut
+from app.routers.auth import require_roles, get_current_profile
 from app.services.sentiment import analyze_sentiment
 
 router = APIRouter(prefix="/api/incidents", tags=["incidents"])
 
+def get_client_ip(request: Request):
+    forwarded_for = request.headers.get("X-Forwarded-For")
+
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+
+    return request.client.host if request.client else None
 
 @router.get("", response_model=list[IncidentOut])
 def list_incidents(
     limit: int = Query(default=100, le=500),
     status: list[str] | None = Query(default=None),
-    db: Session = Depends(get_db)
+    profile: Profile = Depends(require_roles("admin", "personnel", "super_admin")),
+    db: Session = Depends(get_db),
 ):
     query = db.query(Incident)
 
@@ -24,15 +34,22 @@ def list_incidents(
     return query.order_by(desc(Incident.created_at)).limit(limit).all()
 
 
+# incident category list
+@router.get("/categories", response_model=list[IncidentCategoryOut])
+def list_incident_categories(db: Session = Depends(get_db)):
+    return db.query(IncidentCategory).order_by(IncidentCategory.created_at.desc()).all()
+
 @router.post("", response_model=IncidentOut, status_code=201)
 def create_incident(
     payload: IncidentCreate,
+    request: Request,
     db: Session = Depends(get_db)
 ):
     score, label = analyze_sentiment(payload.description)
 
     incident = Incident(
         **payload.model_dump(),
+        reporter_ip=get_client_ip(request),
         sentiment_score=score,
         sentiment_label=label
     )
@@ -40,33 +57,23 @@ def create_incident(
     db.add(incident)
     db.commit()
     db.refresh(incident)
+
     return incident
 
-# incident category list
-@router.get("/categories", response_model=list[str])
-def list_incident_categories(db: Session = Depends(get_db)):
-    categories = (
-        db.query(IncidentCategory)
-        .order_by(IncidentCategory.created_at.desc())
-        .all()
-    )
-
-    return [
-        {
-            "name": category.name,
-            "description": category.description,
-            "created_at": category.created_at
-        }
-        
-        for category in categories
-    ]
+@router.get("/incident-types", response_model=list[IncidentCategoryOut])
+def list_incident_types(
+    profile: Profile = Depends(require_roles("admin", "personnel")),
+    db: Session = Depends(get_db)
+):
+    return db.query(IncidentCategory).all()
 
 
 @router.patch("/{id}/status", response_model=IncidentOut)
 def update_incident_status(
     id: str,
     payload: IncidentStatusUpdate,
-    db: Session = Depends(get_db)
+    profile: Profile = Depends(require_roles("admin", "personnel")),
+    db: Session = Depends(get_db),
 ):
     incident = db.query(Incident).filter(Incident.id == id).first()
 

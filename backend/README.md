@@ -80,45 +80,23 @@ correct CSS selectors for each site's article listing page. Some sites render
 content client-side with JS, in which case `httpx` + BeautifulSoup won't see
 the content — you'd need Playwright for those instead.
 
-## 6b. Running the ML sentiment model
+## 6b. Sentiment Analysis Architecture (External API / Lexicon Fallback)
 
-`app/services/sentiment.py` now uses a real transformer model
-(`cardiffnlp/twitter-xlm-roberta-base-sentiment`) instead of a rule-based
-scorer, picked because it's multilingual -- important since BARMM incident
-reports and news mix English, Filipino, and regional languages.
+Sentiment analysis for news articles and incident reports is designed to be decoupled:
+- **Lightweight Backend**: The main API server does not run heavy LLM / PyTorch models locally, keeping startup instant and memory usage minimal (<100MB).
+- **External LLM Service**: You can deploy the sentiment model (such as TagaSenti or another LLM) separately as an independent microservice / API endpoint and point to it via `SENTIMENT_API_URL`.
+- **Lexicon Fallback**: If no external API is configured or if the external service times out or is unreachable, the system automatically uses the built-in election-domain lexicon scorer.
 
-This has real operational consequences you didn't have with VADER:
+### Configuration (`.env`):
+```env
+# Optional external sentiment endpoint
+SENTIMENT_API_URL=http://localhost:8001/analyze
+# SENTIMENT_API_KEY=your-api-key
+```
 
-- **First run downloads the model** (~1.1GB) from Hugging Face. This needs
-  outbound internet access on whatever server runs the backend. If you're
-  deploying somewhere with restricted egress, download the model ahead of
-  time and bake it into your deployment image instead of relying on a live
-  download at container startup.
-- **Startup takes a few seconds longer** while the model loads into memory
-  (`main.py`'s `lifespan` hook does this once at boot, not per-request --
-  don't undo that, or every single incident submission or news scrape would
-  pay the multi-second load cost).
-- **Memory footprint goes up** -- budget at least 1.5-2GB RAM for the
-  backend process, not the ~100MB a plain FastAPI+SQLAlchemy app would need.
-  Undersized hosting (e.g. a free-tier 512MB instance) will likely OOM.
-- **Inference latency**: expect roughly 100-400ms per call on CPU, which is
-  fine for incident submissions and scraped-article batches, but means don't
-  call `analyze_sentiment()` in a tight per-character loop (e.g. re-scoring
-  on every keystroke for the live-preview field) -- debounce it client-side
-  first, as the original `handleDescriptionChange` implicitly relied on
-  being cheap.
-- **Test it against real BARMM text before trusting it.** Multilingual
-  models are broad but not always accurate on code-switched or
-  regional-language text. Run a handful of real incident descriptions and
-  news headlines through it and sanity-check the labels before going live --
-  if it consistently misreads a language/dialect that matters here, that's
-  worth knowing before personnel start relying on the labels.
-
-If self-hosting a model on your API server turns out to be more ops burden
-than you want, the alternative is calling Hugging Face's hosted Inference
-API instead of running the model locally -- you trade a per-request network
-call (and their pricing) for zero local memory/startup overhead. Worth
-considering if your hosting budget is tight.
+### Endpoints:
+- `POST /api/sentiment/analyze` with `{ "text": "..." }` returns `{ "score": float, "label": "positive" | "negative" | "neutral" }`.
+- `GET /api/sentiment/status` returns whether the external endpoint is configured and active.
 
 ## 7. Not included yet, worth deciding on next
 

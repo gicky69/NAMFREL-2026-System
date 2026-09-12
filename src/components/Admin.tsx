@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { createPortal } from "react-dom";
+
 import { Users, AlertTriangle, Tags, Globe, Check, X, Plus } from 'lucide-react';
 import { auth } from "@/lib/firebase";
 import { supabase } from '@/lib/supabase';
 import { UserProfile, Incident, IncidentCategory, NewsSource } from '@/types';
 import { getIdToken } from 'firebase/auth';
-
-import { createPortal } from "react-dom";
-
 
 type TabType = 'users' | 'reports' | 'categories' | 'sources';
 
@@ -29,9 +28,11 @@ export default function Admin() {
   const [newCategory, setNewCategory] = useState('');
   const [newSource, setNewSource] = useState('');
 
+  // Success message states
+  const [title, setTitle] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [showStatusPage, setShowStatusPage] = useState(false);
-
+  
   useEffect(() => {
     fetchUsers();
     fetchIncidents();
@@ -53,14 +54,22 @@ export default function Admin() {
     }
   };
 
-  // Fetches all incidents, and derives `reports` as just the ones still
-  // awaiting a decision -- the "Report Verification" tab reads from
-  // `reports`, not `incidents` directly, so both need to be set here.
   const fetchIncidents = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/incidents?limit=100`);
+
+      const user = auth.currentUser;
+      if (!user){
+        throw new Error("Not Authenticated");
+      }
+
+      const token = await user.getIdToken();
+      const res = await fetch(`${API_URL}/api/incidents?limit=100`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!res.ok) throw new Error(`Failed to fetch incidents (${res.status})`);
       const data: Incident[] = await res.json();
       setIncidents(data || []);
@@ -72,7 +81,7 @@ export default function Admin() {
     }
   }, [API_URL]);
 
-  const fetchCategories = async () => {
+ const fetchCategories = async () => {
     try {
       const token = await auth.currentUser?.getIdToken();
       const response = await fetch(`${API_URL}/admin/categories`, {
@@ -105,16 +114,7 @@ export default function Admin() {
         },
         body: JSON.stringify({ role: newRole, is_verified: true }),
       });
-      if (!response.ok) {
-        setStatusMessage(`Failed to update user (${response.status})`);
-        setShowStatusPage(true);
-
-        setTimeout(() => {
-          setShowStatusPage(false);
-        }, 3000);
-
-        throw new Error("Failed to update user");
-      }
+      if (!response.ok) throw new Error("Failed to update user");
 
       const updatedUser = await response.json();
       setUsers((currentUsers) =>
@@ -124,6 +124,7 @@ export default function Admin() {
       );
 
       // Show success message
+      setTitle("User Role Updated");
       setStatusMessage(`User successfully updated to ${updatedUser.role}.`);
       setShowStatusPage(true);
 
@@ -134,7 +135,12 @@ export default function Admin() {
 
     } catch (error) {
       console.error("Error updating user:", error);
-      alert("Failed to update user.");
+      setTitle("Error Updating User");
+      setStatusMessage(`Failed to update user (${error instanceof Error ? error.message : "unknown error"})`);
+      setShowStatusPage(true);
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
     }
   };
 
@@ -154,6 +160,14 @@ export default function Admin() {
       });
       if (!res.ok) throw new Error(`Failed to update report (${res.status})`);
 
+      setTitle(`Report ${isVerified ? "Verified" : "Rejected"}`);
+      setStatusMessage(`Report was successfully ${isVerified ? "verified" : "rejected"}.`);
+      setShowStatusPage(true);
+
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
+
       const updated: Incident = await res.json();
       // Remove it from the pending list, and reflect the new status in the
       // full incidents list too so other tabs/views stay in sync.
@@ -161,6 +175,12 @@ export default function Admin() {
       setIncidents((prev) => prev.map((i) => (i.id === id ? updated : i)));
     } catch (error) {
       console.error('Error updating report:', error);
+      setTitle("Error Updating Report");
+      setStatusMessage(`Failed to update report (${error instanceof Error ? error.message : "unknown error"})`);
+      setShowStatusPage(true);
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
       alert("Failed to update report.");
     }
   };
@@ -181,6 +201,7 @@ export default function Admin() {
         body: JSON.stringify({ name: newCategory }),
       });
       if (!response.ok) {
+        setTitle("Error Adding Category");
         setStatusMessage(`Failed to add category (${response.status})`);
         setShowStatusPage(true);
         setTimeout(() => {
@@ -193,6 +214,7 @@ export default function Admin() {
       setCategories([...categories, addedCategory]);
       setNewCategory('');
 
+      setTitle("Category Added");
       setStatusMessage(`"${addedCategory.name}" was successfully added in the list.`);
       setShowStatusPage(true);
 
@@ -221,6 +243,13 @@ export default function Admin() {
       );
 
       if (!response.ok) {
+        setTitle("Error Deleting Category");
+        setStatusMessage(`Failed to delete category (${response.status})`);
+        setShowStatusPage(true);
+        setTimeout(() => {
+          setShowStatusPage(false);
+        }, 3000);
+
         throw new Error("Failed to delete category");
       }
 
@@ -232,6 +261,7 @@ export default function Admin() {
       );
       
 
+      setTitle("Category Deleted");
       setStatusMessage(`"${categoryName}" was successfully deleted.`);
       setShowStatusPage(true);
 
@@ -241,41 +271,15 @@ export default function Admin() {
 
     } catch (error) {
       console.error("Error deleting category:", error);
-      alert("Failed to delete category.");
+      setTitle("Error Deleting Category");
+      setStatusMessage(`Failed to delete category (${error instanceof Error ? error.message : "unknown error"})`);
+      setShowStatusPage(true);
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
     }
   };
   // #endregion
-
-  // #region News Sources tab handlers
-  const handleAddSource = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSource) return;
-
-    const { data, error } = await supabase
-      .from('news_sources')
-      .insert([{ name: new URL(newSource).hostname, url: newSource }])
-      .select();
-
-    if (!error && data) {
-      setSources([...sources, data[0]]);
-      setNewSource('');
-    } else {
-      console.error('Error adding source:', error);
-    }
-  };
-
-  const handleDeleteCategory = async (categoryToDelete: string) => {
-    const { error } = await supabase
-      .from('incident_categories')
-      .delete()
-      .eq('name', categoryToDelete);
-
-    if (!error) {
-      setCategories(categories.filter((cat) => cat.name !== categoryToDelete));
-    } else {
-      console.error('Error deleting category:', error);
-    }
-  };
 
   const handleAddSource = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -291,13 +295,28 @@ export default function Admin() {
     });
     if (!rest.ok) {
       console.error("Failed to add source", rest.status);
+      setTitle("Error Adding Source");
+      setStatusMessage(`Failed to add source (${rest.status})`);
+      setShowStatusPage(true);
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
       return
     }
+
+    setTitle("Source Added");
+    setStatusMessage(`"${newSourceName}" was successfully added in the list.`);
+    setShowStatusPage(true);
+
+    setTimeout(() => {
+      setShowStatusPage(false);
+    }, 3000);
 
     setNewSourceName("");
     setNewSourceURL("");
     await fetchSources();
   };
+
   const handleDeleteSource = async (id: string) => {
     const token = await auth.currentUser?.getIdToken();
     const res = await fetch(`${API_URL}/api/sources/${id}`, {
@@ -305,10 +324,25 @@ export default function Admin() {
       headers: { Authorization: `Bearer ${token}`},
     });
 
-    if (res.ok) await fetchSources();
-  };
+    if (res.ok) {
+      await fetchSources();
+      setTitle("Source Deleted");
+      setStatusMessage(`Source was successfully deleted.`);
+      setShowStatusPage(true);
 
-  // #endregion
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
+    } else {
+      console.error("Failed to delete source", res.status);
+      setTitle("Error Deleting Source");
+      setStatusMessage(`Failed to delete source (${res.status})`);
+      setShowStatusPage(true);
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
+    }
+  };
 
   return (
 
@@ -387,38 +421,8 @@ export default function Admin() {
                       </button>
                     </div>
                   </div>
-                  <div className="flex space-x-2">
-                    {/* NEW: Make Admin But ton */}
-                    <button 
-                      onClick={() => handleVerifyUser(user.id, 'admin')}
-                      className="px-4 py-2 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={user.role === 'admin'}
-                    >
-                      Make Admin
-                    </button>
-                    
-                    <button 
-                      onClick={() => handleVerifyUser(user.id, 'personnel')}
-                      disabled={user.role === 'personnel'}
-                      className={`px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
-                      user.role === 'personnel'
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                    }`}
-                    >
-                      Make Personnel
-                    </button>
-                    
-                    <button 
-                      onClick={() => handleVerifyUser(user.id, 'public')}
-                      className="px-4 py-2 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={user.role === 'public'}
-                    >
-                      Make Public
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -439,14 +443,14 @@ export default function Admin() {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => handleVerifyReport(report.id, true)}
-                      className="flex items-center space-x-1 px-3 py-2 bg-green-50 text-green-700 rounded-md hover:bg-green-100"
+                      className="flex items-center space-x-1 px-4 py-2 bg-green-50 text-green-700 rounded-md hover:bg-green-100 text-sm font-medium transition"
                     >
                       <Check size={16} />
                       <span>Verify</span>
                     </button>
                     <button
                       onClick={() => handleVerifyReport(report.id, false)}
-                      className="flex items-center space-x-1 px-3 py-2 bg-red-50 text-red-700 rounded-md hover:bg-red-100"
+                      className="flex items-center space-x-1 px-4 py-2 bg-red-50 text-red-700 rounded-md hover:bg-red-100 text-sm font-medium transition"
                     >
                       <X size={16} />
                       <span>Reject</span>
@@ -469,7 +473,7 @@ export default function Admin() {
                 placeholder="New category name..."
                 className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
               />
-              <button type="submit" className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+              <button type="submit" className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark">
                 <Plus size={20} />
                 <span>Add Category</span>
               </button>
@@ -509,7 +513,7 @@ export default function Admin() {
               placeholder="https://example-news.com/feed"
               className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
             />
-            <button type="submit" className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            <button type="submit" className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-dark">
               <Plus size={20} />
               <span>Add Source</span>
             </button>
@@ -536,7 +540,7 @@ export default function Admin() {
       </div>
     </div>
 
-      {showStatusPage &&
+    {showStatusPage &&
       createPortal(
         <div className="fixed bottom-6 right-6 z-[999999]">
           <div className="flex items-center gap-4 rounded-xl border border-green-200 bg-white px-5 py-4 shadow-2xl min-w-[400px]">
@@ -547,7 +551,7 @@ export default function Admin() {
 
             <div className="flex-1">
               <h3 className="font-semibold text-slate-900">
-                Success!
+                {title}
               </h3>
 
               <p className="text-sm text-slate-500">
@@ -566,6 +570,7 @@ export default function Admin() {
         </div>,
         document.body
       )}
-    </>
+
+      </>
   );
 }

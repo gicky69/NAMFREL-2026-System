@@ -6,6 +6,7 @@
   import { SentimentBadge } from "@/components/SentimentBadge";
   import { formatDate } from "@/lib/sentiment";
   import { ProvinceMap } from "@/components/ProvinceMap";
+  import { auth } from "@/lib/firebase";
 
 
   const API_URL = import.meta.env.VITE_API_URL;
@@ -21,25 +22,32 @@
     const [error, setError] = useState<string | null>(null);
     const [scraping, setScraping] = useState(false);
     const [scrapeMessage, setScrapeMessage] = useState<string | null>(null);
+    const [scrapeErrors, setScrapeErrors] = useState<string[]>([]);
+    const [showScrapeErrors, setShowScrapeErrors] = useState(false);
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [articleRes, incidentRes] = await Promise.all([
-        fetch(`${API_URL}/api/articles?limit=100`),
-        fetch(`${API_URL}/api/incidents?limit=100`)
-      ]);
+      setLoading(true);
+      setError(null);
+      try {
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error("Not authenticated");
+        }
+        const token = await user.getIdToken();
+        const headers = { Authorization: `Bearer ${token}` };
+
+        const [articleRes, incidentRes] = await Promise.all([
+          fetch(`${API_URL}/api/articles?limit=100`, { headers }),
+          fetch(`${API_URL}/api/incidents?limit=100&status=verified`, { headers })
+        ]);
 
         for (const res of [articleRes, incidentRes]) {
           if (!res.ok) {
-            let detail = `Request Failed with stats ${res.status}`;
+            let detail = `Request Failed with status ${res.status}`;
             try {
               const body = await res.json();
               if (body?.detail) detail = body.detail;
-            } catch {
-
-            }
+            } catch {}
             throw new Error(detail);
           }
         }
@@ -49,7 +57,7 @@
           incidentRes.json(),
         ]);
 
-        setData({ articles: articles || [], incidents: incidents || []});
+        setData({ articles: articles || [], incidents: incidents || [] });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load dashboard data");
       } finally {
@@ -64,22 +72,20 @@
     const handleScrape = async () => {
       setScraping(true);
       setScrapeMessage(null);
+      setScrapeErrors([]);
       try {
-        const response = await fetch(`${API_URL}/api/news/scrape`, {
-          method: "POST"
-        });
-
-        if (!response.ok) throw new Error(`Scrape Failed (${response.status})`);
+        const response = await fetch(`${API_URL}/api/news/scrape`, { method: "POST" });
+        if (!response.ok) throw new Error(`Scrape failed (${response.status})`);
         const result = await response.json();
-        setScrapeMessage(
-          `Scrape ${result.scraped || 0} new articles, skipped ${result.skipped || 0} existing/non-BARMM articles${
-            result.errors ? `. Some source issues ${result.errors.join("; ")}`: ""
-          }
-          `
-        )
-        await fetchData();
-      } catch {
 
+        setScrapeMessage(
+          `Scraped ${result.scraped || 0} new article${result.scraped === 1 ? "" : "s"}` +
+          (result.skipped ? ` (${result.skipped} already seen or not BARMM-related)` : "")
+        );
+        setScrapeErrors(result.errors || []);
+        await fetchData();
+      } catch (err) {
+        setScrapeMessage(err instanceof Error ? err.message : "Scrape failed");
       } finally {
         setScraping(false);
       }
@@ -92,10 +98,13 @@
     const { articles, incidents } = data;
 
     // Sentiment distribution
+    const analyzedArticles = articles.filter((a) => a.sentiment_status === "done");
+
     const sentimentCounts = { positive: 0, negative: 0, neutral: 0 } as Record<SentimentLabel, number>;
-    articles.forEach((a) => sentimentCounts[a.sentiment_label]++);
-    const totalArticles = articles.length;
-    
+    analyzedArticles.forEach((a) => sentimentCounts[a.sentiment_label!]++);
+
+    const totalArticles = articles.length; // keep this as the real total for the "News Articles" stat card
+
     // Incident type distribution
     const incidentTypeCounts: Record<string, number> = {};
     incidents.forEach((i) => {
@@ -120,8 +129,8 @@
     });
 
     // Average sentiment
-    const avgSentiment = totalArticles > 0
-      ? articles.reduce((sum, a) => sum + a.sentiment_score, 0) / totalArticles
+    const avgSentiment = analyzedArticles.length > 0
+      ? analyzedArticles.reduce((sum, a) => sum + a.sentiment_score, 0) / analyzedArticles.length
       : 0;
 
     // Source distribution
@@ -157,8 +166,25 @@
         </div>
 
         {scrapeMessage && (
-          <div className={`card p-4 text-sm animate-fade-in ${scrapeMessage.startsWith("Error") ? "border-red-200 bg-red-50" : "border-teal-200 bg-teal-50"}`}>
-            <p className={scrapeMessage.startsWith("Error") ? "text-red-700" : "text-teal-700"}>{scrapeMessage}</p>
+          <div className="card p-4 text-sm animate-fade-in border-teal-200 bg-teal-50">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-teal-700">{scrapeMessage}</p>
+              {scrapeErrors.length > 0 && (
+                <button
+                  onClick={() => setShowScrapeErrors((v) => !v)}
+                  className="text-xs text-amber-700 bg-amber-100 px-2 py-1 rounded shrink-0 hover:bg-amber-200 transition-colors"
+                >
+                  {scrapeErrors.length} source issue{scrapeErrors.length === 1 ? "" : "s"} {showScrapeErrors ? "▲" : "▼"}
+                </button>
+              )}
+            </div>
+            {showScrapeErrors && (
+              <ul className="mt-3 space-y-1 text-xs text-slate-500 border-t border-teal-200 pt-3">
+                {scrapeErrors.map((e, i) => (
+                  <li key={i} className="truncate" title={e}>{e.split(":")[0]}</li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 

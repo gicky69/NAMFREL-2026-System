@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Send, CheckCircle, FileWarning } from "lucide-react";
 import { analyzeSentiment } from "@/lib/sentiment";
 import type { NewIncident } from "@/types";
+import { ORGANIZATIONS, type Organization } from "@/types";
 import { BARMM_PROVINCES, SEVERITY_LEVELS } from "@/types";
 
 import { auth } from "@/lib/firebase";
@@ -12,18 +13,22 @@ interface ReportIncidentProps {
   onSubmitted?: () => void;
 }
 
-
 export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
+  
   const [formData, setFormData] = useState<NewIncident>({
     title: "",
     description: "",
-    incident_type: "violence",
-    severity: "medium",
+    incident_type: "",
+    severity: "",
     province: BARMM_PROVINCES[0],
     municipality: "",
     incident_date: new Date().toISOString().split("T")[0],
+    incident_hour: "",
+    incident_minute: "",
+    incident_period: "AM",
     reported_by: "",
     contact_info: "",
+    organization: "",
   });
 
   type IncidentCategory = {
@@ -33,11 +38,29 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
   const [incidentTypes, setIncidentTypes] = useState<IncidentCategory[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
 
+  const [incidentHour, setIncidentHour] = useState("");
+  const [incidentMinute, setIncidentMinute] = useState("");
+  const [incidentPeriod, setIncidentPeriod] = useState<"AM" | "PM">("AM");
+
 
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [liveSentiment, setLiveSentiment] = useState<{ score: number; label: string } | null>(null);
+  const sentimentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isFormValid =
+    formData.title.trim() !== "" &&
+    formData.description.trim() !== "" &&
+    formData.incident_type !== "" &&
+    formData.severity !== "" &&
+    formData.province !== "" &&
+    formData.incident_date !== "" &&
+    incidentHour !== "" &&
+    incidentMinute !== "" &&
+    incidentPeriod !== "" &&
+    formData.organization !== "" &&
+    formData.contact_info.trim() !== "";
 
   const handleChange = (field: keyof NewIncident, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -45,8 +68,34 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
 
   const handleDescriptionChange = (value: string) => {
     setFormData((prev) => ({ ...prev, description: value }));
-    if (value.trim().length > 10) {
-      setLiveSentiment(analyzeSentiment(value));
+
+    if (sentimentTimerRef.current) {
+      clearTimeout(sentimentTimerRef.current);
+    }
+
+    const trimmed = value.trim();
+    if (trimmed.length > 10) {
+      // Instant client-side preview first
+      setLiveSentiment(analyzeSentiment(trimmed));
+
+      // Debounced backend TagaSenti model inference
+      if (API_URL) {
+        sentimentTimerRef.current = setTimeout(async () => {
+          try {
+            const res = await fetch(`${API_URL}/api/sentiment/analyze`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: trimmed }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              setLiveSentiment({ score: data.score, label: data.label });
+            }
+          } catch {
+            // Retain local client-side estimate on error
+          }
+        }, 400);
+      }
     } else {
       setLiveSentiment(null);
     }
@@ -54,58 +103,144 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!isFormValid) {
+      setError("Please fill out all required fields.");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
 
-    try {
-      const payload = {
-        title: formData.title,
-        description: formData.description,
-        incident_type: formData.incident_type,
-        severity: formData.severity,
-        province: formData.province,
-        municipality: formData.municipality || null,
-        incident_date: formData.incident_date,
-        reported_by: formData.reported_by || null,
-        contact_info: formData.contact_info || null,
-        // sentiment_score / sentiment_label intentionally NOT sent -- the
-        // backend computes those itself from `description` in
-        // app/routers/incidents.py, so the frontend is never trusted for it.
-      };
+    // Convert 12-hour time to 24-hour time
+    const hour = Number(incidentHour);
+    let hour24 = hour;
 
-      const res = await fetch(`${API_URL}/api/incidents`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.detail || `Submission failed (${res.status})`);
-      }
-
-      setSuccess(true);
-      setFormData({
-        title: "",
-        description: "",
-        incident_type: "violence",
-        severity: "medium",
-        province: BARMM_PROVINCES[0],
-        municipality: "",
-        incident_date: new Date().toISOString().split("T")[0],
-        reported_by: "",
-        contact_info: "",
-      });
-      setLiveSentiment(null);
-      onSubmitted?.();
-      setTimeout(() => setSuccess(false), 5000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit incident report");
-    } finally {
-      setSubmitting(false);
+    if (incidentPeriod === "AM" && hour === 12) {
+      hour24 = 0;
+    } else if (incidentPeriod === "PM" && hour !== 12) {
+      hour24 = hour + 12;
     }
+
+    const formattedTime =
+      `${String(hour24).padStart(2, "0")}:${incidentMinute.padStart(2, "0")}:00`;
+
+    const submitReport = async (
+      latitude: number | null,
+      longitude: number | null,
+      accuracy: number | null
+    ) => {
+      try {
+        const payload = {
+          title: formData.title,
+          description: formData.description,
+          incident_type: formData.incident_type,
+          severity: formData.severity,
+          province: formData.province,
+          municipality: formData.municipality || null,
+          incident_date: formData.incident_date,
+          incident_time: formattedTime,
+
+          // Approximate reporter location
+          reporter_latitude: latitude,
+          reporter_longitude: longitude,
+          reporter_location_accuracy: accuracy,
+
+          reported_by: formData.reported_by || null,
+          contact_info: formData.contact_info || null,
+          organization: formData.organization,
+        };
+
+        const res = await fetch(`${API_URL}/api/incidents`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          throw new Error(
+            body?.detail || `Submission failed (${res.status})`
+          );
+        }
+
+        setSuccess(true);
+
+        setFormData({
+          title: "",
+          description: "",
+          incident_type: "violence",
+          severity: "medium",
+          organization: "",
+          incident_hour: "",
+          incident_minute: "",
+          incident_period: "AM",
+          province: BARMM_PROVINCES[0],
+          municipality: "",
+          incident_date: new Date().toISOString().split("T")[0],
+          reported_by: "",
+          contact_info: "",
+        });
+
+        // Reset time fields
+        setIncidentHour("");
+        setIncidentMinute("");
+        setIncidentPeriod("AM");
+
+        setLiveSentiment(null);
+        onSubmitted?.();
+
+        setTimeout(() => setSuccess(false), 5000);
+
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to submit incident report"
+        );
+      } finally {
+        setSubmitting(false);
+      }
+    };
+
+    // Browser doesn't support geolocation
+    if (!navigator.geolocation) {
+      await submitReport(null, null, null);
+      return;
+    }
+
+    // Automatically request browser location permission
+    navigator.geolocation.getCurrentPosition(
+
+      // User allowed location
+      async (position) => {
+        await submitReport(
+          position.coords.latitude,
+          position.coords.longitude,
+          position.coords.accuracy
+        );
+      },
+
+      // User denied location or location unavailable
+      async (locationError) => {
+        console.warn(
+          "Reporter location unavailable:",
+          locationError.message
+        );
+
+        // Still submit without location
+        await submitReport(null, null, null);
+      },
+
+      {
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 300000,
+      }
+    );
   };
-  
 
   useEffect(() => {
     const fetchIncidentTypes = async () => {
@@ -117,9 +252,8 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
         }
 
         const token = await user.getIdToken();
-
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/admin/categories`,
+          `${import.meta.env.VITE_API_URL}/api/incidents/incident-types`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -301,38 +435,90 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
           </div>
         </div>
 
-        {/* Incident Date */}
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">
-            Date of Incident <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="date"
-            required
-            value={formData.incident_date}
-            onChange={(e) => handleChange("incident_date", e.target.value)}
-            max={new Date().toISOString().split("T")[0]}
-            className="input-field"
-          />
+        {/* Incident Date and Time */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Date of Incident <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="date"
+              required
+              value={formData.incident_date}
+              onChange={(e) => handleChange("incident_date", e.target.value)}
+              max={new Date().toISOString().split("T")[0]}
+              className="input-field"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Time of Incident <span className="text-red-500">*</span>
+            </label>
+
+            <div className="grid grid-cols-3 gap-2">
+
+              {/* Hour */}
+              <input
+                type="number"
+                min="1"
+                max="12"
+                value={incidentHour}
+                onChange={(e) => setIncidentHour(e.target.value)}
+                placeholder="Hour"
+                className="input-field"
+              />
+
+              {/* Minute */}
+              <input
+                type="number"
+                min="0"
+                max="59"
+                value={incidentMinute}
+                onChange={(e) => setIncidentMinute(e.target.value)}
+                placeholder="Minute"
+                className="input-field"
+              />
+
+              {/* AM / PM */}
+              <select
+                value={incidentPeriod}
+                onChange={(e) =>
+                  setIncidentPeriod(e.target.value as "AM" | "PM")
+                }
+                className="input-field cursor-pointer"
+              >
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+              </select>
+
+            </div>
+          </div>
+
         </div>
 
         {/* Reporter info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Your Name (optional)
+              Affiliated Organization <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              value={formData.reported_by}
-              onChange={(e) => handleChange("reported_by", e.target.value)}
-              placeholder="Anonymous if left blank"
-              className="input-field"
-            />
+            <select
+              value={formData.organization}
+              onChange={(e) => handleChange("organization", e.target.value as Organization)}
+              className="input-field cursor-pointer"
+            >
+              <option value="">Select an Organization</option>
+              {ORGANIZATIONS.map((organization) => (
+                <option key={organization} value={organization}>
+                  {organization}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              Contact Info (optional)
+              Contact Info <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -344,11 +530,26 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
           </div>
         </div>
 
+
+        {/* Organization */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            Your Name (optional)
+          </label>
+          <input
+            type="text"
+            value={formData.reported_by}
+            onChange={(e) => handleChange("reported_by", e.target.value)}
+            placeholder="Anonymous if left blank"
+            className="input-field"
+          />
+        </div>
+
         {/* Submit */}
         <div className="pt-4 border-t border-slate-100">
           <button
             type="submit"
-            disabled={submitting || !formData.title || !formData.description}
+            disabled={submitting || !isFormValid}
             className="btn-primary w-full sm:w-auto flex items-center gap-2 justify-center"
           >
             <Send className="w-4 h-4" />
