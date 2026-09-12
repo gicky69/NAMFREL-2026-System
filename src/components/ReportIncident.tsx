@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Send, CheckCircle, FileWarning } from "lucide-react";
 import { analyzeSentiment } from "@/lib/sentiment";
 import type { NewIncident } from "@/types";
@@ -47,6 +47,7 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [liveSentiment, setLiveSentiment] = useState<{ score: number; label: string } | null>(null);
+  const sentimentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isFormValid =
     formData.title.trim() !== "" &&
@@ -67,8 +68,34 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
 
   const handleDescriptionChange = (value: string) => {
     setFormData((prev) => ({ ...prev, description: value }));
-    if (value.trim().length > 10) {
-      setLiveSentiment(analyzeSentiment(value));
+
+    if (sentimentTimerRef.current) {
+      clearTimeout(sentimentTimerRef.current);
+    }
+
+    const trimmed = value.trim();
+    if (trimmed.length > 10) {
+      // Instant client-side preview first
+      setLiveSentiment(analyzeSentiment(trimmed));
+
+      // Debounced backend TagaSenti model inference
+      if (API_URL) {
+        sentimentTimerRef.current = setTimeout(async () => {
+          try {
+            const res = await fetch(`${API_URL}/api/sentiment/analyze`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: trimmed }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              setLiveSentiment({ score: data.score, label: data.label });
+            }
+          } catch {
+            // Retain local client-side estimate on error
+          }
+        }, 400);
+      }
     } else {
       setLiveSentiment(null);
     }

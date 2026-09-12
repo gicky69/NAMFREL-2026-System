@@ -4,7 +4,10 @@ httpx==0.28.1
 pydantic==2.13.5
 pydantic_settings==2.15.0
 SQLAlchemy==2.0.35
-transformers==5.16.1
+transformers>=4.40.0
+torch
+sentencepiece
+protobuf
 uvicorn[standard]==0.34.0
 psycopg2-binary
 firebase-admin

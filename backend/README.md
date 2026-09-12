@@ -80,45 +80,35 @@ correct CSS selectors for each site's article listing page. Some sites render
 content client-side with JS, in which case `httpx` + BeautifulSoup won't see
 the content — you'd need Playwright for those instead.
 
-## 6b. Running the ML sentiment model
+## 6b. Running the TagaSenti sentiment model
 
-`app/services/sentiment.py` now uses a real transformer model
-(`cardiffnlp/twitter-xlm-roberta-base-sentiment`) instead of a rule-based
-scorer, picked because it's multilingual -- important since BARMM incident
-reports and news mix English, Filipino, and regional languages.
+`app/services/sentiment.py` uses the **TagaSenti** transformer model
+(`jjjardev/tagasenti_model`), fine-tuned from XLM-RoBERTa specifically for
+ternary sentiment classification (Negative / Neutral / Positive) on Tagalog,
+Taglish, and Philippine language contexts relevant to BARMM elections.
 
-This has real operational consequences you didn't have with VADER:
+### Key Features:
+- **Trained on Philippine Contexts**: Specifically handles Tagalog, Taglish,
+  sarcasm, negation, hedging, and regional low-resource language transfer.
+- **Continuous Normalized Scoring**: Computes directional sentiment polarity
+  in `[-1.0, 1.0]` as $P(\text{Positive}) - P(\text{Negative})$, matching
+  the DB schema (`real`) and frontend indicators.
+- **Graceful Fallback**: If Hugging Face is unreachable or dependencies are
+  unavailable, the service transparently falls back to the keyword lexicon
+  analyzer without crashing.
+- **API Endpoint**:
+  - `POST /api/sentiment/analyze` with `{ "text": "..." }` returns
+    `{ "score": float, "label": "positive" | "negative" | "neutral" }`.
+  - `GET /api/sentiment/status` returns model loading status and active device.
 
-- **First run downloads the model** (~1.1GB) from Hugging Face. This needs
-  outbound internet access on whatever server runs the backend. If you're
-  deploying somewhere with restricted egress, download the model ahead of
-  time and bake it into your deployment image instead of relying on a live
-  download at container startup.
-- **Startup takes a few seconds longer** while the model loads into memory
-  (`main.py`'s `lifespan` hook does this once at boot, not per-request --
-  don't undo that, or every single incident submission or news scrape would
-  pay the multi-second load cost).
-- **Memory footprint goes up** -- budget at least 1.5-2GB RAM for the
-  backend process, not the ~100MB a plain FastAPI+SQLAlchemy app would need.
-  Undersized hosting (e.g. a free-tier 512MB instance) will likely OOM.
-- **Inference latency**: expect roughly 100-400ms per call on CPU, which is
-  fine for incident submissions and scraped-article batches, but means don't
-  call `analyze_sentiment()` in a tight per-character loop (e.g. re-scoring
-  on every keystroke for the live-preview field) -- debounce it client-side
-  first, as the original `handleDescriptionChange` implicitly relied on
-  being cheap.
-- **Test it against real BARMM text before trusting it.** Multilingual
-  models are broad but not always accurate on code-switched or
-  regional-language text. Run a handful of real incident descriptions and
-  news headlines through it and sanity-check the labels before going live --
-  if it consistently misreads a language/dialect that matters here, that's
-  worth knowing before personnel start relying on the labels.
-
-If self-hosting a model on your API server turns out to be more ops burden
-than you want, the alternative is calling Hugging Face's hosted Inference
-API instead of running the model locally -- you trade a per-request network
-call (and their pricing) for zero local memory/startup overhead. Worth
-considering if your hosting budget is tight.
+### Operational Notes:
+- **First run downloads the model** (~1.1GB to 2.2GB) from Hugging Face Hub.
+  Make sure the server has outbound internet access or pre-downloads weights.
+- **Startup time**: The model is loaded once in memory during FastAPI's `lifespan`
+  startup hook.
+- **Memory footprint**: Budget at least 2GB RAM for CPU inference (or GPU with CUDA).
+- **Client debouncing**: In `ReportIncident.tsx`, description input is debounced
+  (400ms) before hitting `/api/sentiment/analyze` with local client-side instant preview.
 
 ## 7. Not included yet, worth deciding on next
 
