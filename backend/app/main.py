@@ -23,7 +23,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",   # Vite dev server
         "http://127.0.0.1:5173",
-        "https://namfrel-2026-system.onrender.com/"
+        "https://namfrel-2026-system.onrender.com"
     ],
     allow_credentials=True,
     allow_methods=["*"],
