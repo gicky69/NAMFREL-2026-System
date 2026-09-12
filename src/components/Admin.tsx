@@ -146,6 +146,13 @@ export default function Admin() {
       });
       if (!res.ok) throw new Error(`Failed to update report (${res.status})`);
 
+      setStatusMessage(`Report was successfully ${isVerified ? "verified" : "rejected"}.`);
+      setShowStatusPage(true);
+
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
+
       const updated: Incident = await res.json();
       // Remove it from the pending list, and reflect the new status in the
       // full incidents list too so other tabs/views stay in sync.
