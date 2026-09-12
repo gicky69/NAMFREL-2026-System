@@ -24,6 +24,26 @@ def list_incidents(
     return query.order_by(desc(Incident.created_at)).limit(limit).all()
 
 
+# incident category list
+@router.get("/categories", response_model=list[str])
+def list_incident_categories(db: Session = Depends(get_db)):
+    categories = (
+        db.query(IncidentCategory)
+        .order_by(IncidentCategory.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            "name": category.name,
+            "description": category.description,
+            "created_at": category.created_at
+        }
+
+        for category in categories
+    ]
+
+
 @router.post("", response_model=IncidentOut, status_code=201)
 def create_incident(
     payload: IncidentCreate,

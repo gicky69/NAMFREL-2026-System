@@ -22,4 +22,7 @@ dist-ssr
 *.sw?
 .env
 
+__pycache__/
+*.py[cod]
+
 backend/firebase-service-account.json
