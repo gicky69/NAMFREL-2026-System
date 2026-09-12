@@ -313,9 +313,9 @@ def _check_feeds(debug: bool = False):
     db = SessionLocal()
     
     try:
-        sources: _get_db_sources(db) + HTML_SOUCRES
+        sources = _get_db_sources(db) + HTML_SOURCES
         with httpx.Client(timeout=15.0, follow_redirects=True, headers=REQUEST_HEADERS) as client:
-            for source in SOURCES:
+            for source in sources:
                 name = source["name"]
                 try:
                     if source.get("is_html"):
