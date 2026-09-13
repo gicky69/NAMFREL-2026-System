@@ -93,7 +93,7 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
               {/* Title */}
               <div className="hidden sm:block">
                 <h1 className="text-xl font-bold leading-tight">
-                  Incident Reporting & Sentiment Analysis
+                  Sentiment Analysis & Incident Reporting
                 </h1>
 
                 <p className="text-xs font-bold hidden sm:block text-white/90">
