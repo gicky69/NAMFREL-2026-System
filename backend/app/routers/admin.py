@@ -264,3 +264,58 @@ def delete_category(
     return {
         "message": "Category deleted successfully",
     }
+
+@router.get("/reports/pending")
+def get_pending_reports(
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db)
+):
+    """Fetch all unverified incidents for admin review."""
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+        
+    token = authorization.replace("Bearer ", "", 1) 
+
+    try: 
+        decoded_token = verify_firebase_token(token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid Firebase token")
+    
+    requester = db.query(Profile).filter(Profile.firebase_uid == decoded_token["uid"]).first()
+
+    if not requester or requester.role not in ["admin", "super_admin"]:
+        raise HTTPException(status_code=403, detail="Not authorized to view reports")
+
+    # Fetch incidents currently marked as 'reported'
+    reports = (
+        db.query(Incident)
+        .filter(Incident.status == "reported")
+        .order_by(Incident.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": str(report.id),
+            "title": report.title,
+            "description": report.description,
+            "incident_type": report.incident_type,
+            "severity": report.severity,
+            "province": report.province,
+            "municipality": report.municipality,
+            "incident_date": str(report.incident_date) if report.incident_date else None,
+            "incident_time": str(report.incident_time) if report.incident_time else None,
+            "organization": report.organization,
+            "contact_info": report.contact_info,
+            "status": report.status,
+            # NEW: Verification Context Fields
+            "reported_by": report.reported_by,
+            "reporter_latitude": report.reporter_latitude,
+            "reporter_longitude": report.reporter_longitude,
+            "reporter_location_accuracy": report.reporter_location_accuracy,
+            "reporter_ip": report.reporter_ip,
+            "sentiment_label": report.sentiment_label,
+            "sentiment_score": report.sentiment_score
+        }
+        for report in reports
+    ]

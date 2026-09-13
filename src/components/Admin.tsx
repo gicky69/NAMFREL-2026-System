@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from "react-dom";
-
-import { Users, AlertTriangle, Tags, Globe, Check, X, Plus } from 'lucide-react';
 import { auth } from "@/lib/firebase";
 import { supabase } from '@/lib/supabase';
 import { UserProfile, Incident, IncidentCategory, NewsSource } from '@/types';
 import { getIdToken } from 'firebase/auth';
-
+import { Users, AlertTriangle, Tags, Globe, Check, X, Plus, MapPin, User, Clock, ExternalLink } from 'lucide-react';
 type TabType = 'users' | 'reports' | 'categories' | 'sources';
 
 export default function Admin() {
@@ -429,34 +427,119 @@ export default function Admin() {
           </div>
         )}
 
+
         {activeTab === 'reports' && (
           <div>
             <h2 className="text-xl font-semibold mb-4">Unverified Incident Reports</h2>
             {loading && <p className="text-gray-500 py-4">Loading reports...</p>}
             {error && <p className="text-red-600 py-4">{error}</p>}
-            <div className="divide-y divide-gray-200">
-              {!loading && reports.length === 0 && <p className="text-gray-500 py-4">No pending reports.</p>}
+            
+            <div className="space-y-6">
+              {!loading && reports.length === 0 && (
+                <p className="text-gray-500 py-4 border-2 border-dashed border-gray-200 rounded-lg text-center bg-gray-50">No pending reports to verify.</p>
+              )}
+              
               {reports.map((report) => (
-                <div key={report.id} className="py-4 flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">{report.title}</p>
-                    <p className="text-sm text-gray-500">{report.province} {report.municipality && `- ${report.municipality}`}</p>
+                <div key={report.id} className="p-5 border border-gray-200 rounded-xl bg-white shadow-sm flex flex-col gap-5 transition hover:shadow-md">
+                  
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div className="flex-1 space-y-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h3 className="font-semibold text-lg text-gray-900 leading-tight">{report.title}</h3>
+                          <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
+                            <Clock size={14} /> 
+                            {report.incident_date} {report.incident_time ? `at ${report.incident_time}` : ''}
+                          </p>
+                        </div>
+                        
+                        {/* Status Badges */}
+                        <div className="flex gap-2">
+                          <span className={`px-2.5 py-1 text-xs rounded-full font-medium capitalize border ${
+                            report.severity === 'critical' ? 'bg-red-50 text-red-700 border-red-200' :
+                            report.severity === 'high' ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                            'bg-yellow-50 text-yellow-700 border-yellow-200'
+                          }`}>
+                            {report.severity}
+                          </span>
+                          {report.sentiment_label && report.sentiment_label !== 'neutral' && (
+                            <span className={`px-2.5 py-1 text-xs rounded-full font-medium capitalize border ${
+                              report.sentiment_label === 'negative' ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            }`}>
+                              AI: {report.sentiment_label}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <p className="text-gray-700 text-sm bg-gray-50 p-3 rounded-md border border-gray-100">
+                        {report.description}
+                      </p>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-row md:flex-col space-x-2 md:space-x-0 md:space-y-2 shrink-0 md:w-32">
+                      <button
+                        onClick={() => handleVerifyReport(report.id, true)}
+                        className="flex-1 flex items-center justify-center space-x-1 px-4 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors shadow-sm"
+                      >
+                        <Check size={16} />
+                        <span className="font-medium">Verify</span>
+                      </button>
+                      <button
+                        onClick={() => handleVerifyReport(report.id, false)}
+                        className="flex-1 flex items-center justify-center space-x-1 px-4 py-2.5 bg-white border border-red-200 text-red-600 rounded-md hover:bg-red-50 transition-colors shadow-sm"
+                      >
+                        <X size={16} />
+                        <span className="font-medium">Reject</span>
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 justify-end">
-                    <button
-                      onClick={() => handleVerifyReport(report.id, true)}
-                      className="flex items-center space-x-1 px-4 py-2 bg-green-50 text-green-700 rounded-md hover:bg-green-100 text-sm font-medium transition"
-                    >
-                      <Check size={16} />
-                      <span>Verify</span>
-                    </button>
-                    <button
-                      onClick={() => handleVerifyReport(report.id, false)}
-                      className="flex items-center space-x-1 px-4 py-2 bg-red-50 text-red-700 rounded-md hover:bg-red-100 text-sm font-medium transition"
-                    >
-                      <X size={16} />
-                      <span>Reject</span>
-                    </button>
+
+                  {/* Verification Context Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-gray-100 pt-4 mt-2">
+                    
+                    {/* Location Block */}
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1"><MapPin size={12}/> General Location</p>
+                      <p className="text-sm font-medium text-gray-900">{report.province}</p>
+                      {report.municipality && <p className="text-xs text-gray-500">{report.municipality}</p>}
+                    </div>
+
+                    {/* Reporter Details Block */}
+                    <div className="space-y-1">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1"><User size={12}/> Reporter Credentials</p>
+                      <p className="text-sm font-medium text-gray-900">{report.organization || report.reported_by || "Anonymous Public User"}</p>
+                      {report.contact_info && <p className="text-xs text-gray-500">Contact: {report.contact_info}</p>}
+                      {report.reporter_ip && <p className="text-xs text-gray-400 font-mono mt-1">IP: {report.reporter_ip}</p>}
+                    </div>
+
+                    {/* Geolocation Block */}
+                    <div className="space-y-1 lg:col-span-1 md:col-span-2">
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1"><Globe size={12}/> Exact Geolocation</p>
+                      {report.reporter_latitude && report.reporter_longitude ? (
+                        <div className="bg-blue-50 border border-blue-100 rounded p-2 mt-1">
+                          <div className="flex justify-between items-center">
+                            <div className="text-xs text-blue-800 font-mono">
+                              <div>Lat: {report.reporter_latitude.toFixed(5)}</div>
+                              <div>Lng: {report.reporter_longitude.toFixed(5)}</div>
+                              {report.reporter_location_accuracy && <div className="text-blue-600/70 mt-0.5">±{Math.round(report.reporter_location_accuracy)} meters</div>}
+                            </div>
+                            <a 
+                              href={`https://www.google.com/maps/search/?api=1&query=${report.reporter_latitude},${report.reporter_longitude}`} 
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="flex items-center gap-1 text-xs bg-blue-600 text-white px-2 py-1.5 rounded hover:bg-blue-700 transition"
+                            >
+                              Maps <ExternalLink size={12} />
+                            </a>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-400 italic mt-1">No GPS coordinates provided</p>
+                      )}
+                    </div>
+
                   </div>
                 </div>
               ))}
