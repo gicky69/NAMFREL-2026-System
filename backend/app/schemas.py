@@ -70,6 +70,8 @@ class NewsArticleOut(BaseModel):
     sentiment_label: str | None = None
     sentiment_score: float | None = None
     is_election_related: bool = False
+    sentiment_status: str
+    scraped_at: datetime.datetime
 
 class NewsSourceCreate(BaseModel):
     name: str

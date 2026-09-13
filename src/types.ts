@@ -1,4 +1,5 @@
 export type SentimentLabel = "positive" | "negative" | "neutral";
+export type SentimentStatus = "pending" | "processing" | "done" | "failed";
 
 export type Severity = "low" | "medium" | "high" | "critical";
 
