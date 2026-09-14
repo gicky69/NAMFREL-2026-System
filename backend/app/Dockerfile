@@ -1,13 +1,14 @@
-FROM python:3.13-slim
+FROM python:3.13-slim-bookworm
 
 WORKDIR /code
 
-RUN apt-get update && apt-get install -y --no-install-recommends \ 
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN playwright install --with-deps chromium
 
 COPY . .
 
