@@ -54,8 +54,7 @@ class IncidentCategoryOut(BaseModel):
     
 class IncidentStatusUpdate(BaseModel):
     status: str
-
-
+    
 class NewsArticleOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -67,11 +66,19 @@ class NewsArticleOut(BaseModel):
     published_date: Optional[datetime.datetime] = None
     province: Optional[str] = None
     keywords: Optional[list[str]] = None
-    sentiment_label: str | None = None
-    sentiment_score: float | None = None
-    is_election_related: bool = False
+    status: str
+    sentiment_score: Optional[float] = None
+    sentiment_label: Optional[str] = None
+    scraped_at: Optional[datetime.datetime] = None
     sentiment_status: str
-    scraped_at: datetime.datetime
+    sentiment_updated_at: Optional[datetime.datetime] = None
+    sentiment_model_version: Optional[str] = None
+    is_election_related: bool
+    verified_by: Optional[uuid.UUID] = None
+    verified_at: Optional[datetime.datetime] = None
+
+class ArticleStatusUpdate(BaseModel):
+    status: str
 
 class NewsSourceCreate(BaseModel):
     name: str

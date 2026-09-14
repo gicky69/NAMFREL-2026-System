@@ -15,6 +15,7 @@ from app.db import Base
 severity_level = PGEnum("low", "medium", "high", "critical", name="severity_level", create_type=False)
 incident_status = PGEnum("reported", "verified", "resolved", "rejected", name="incident_status", create_type=False)
 sentiment_label_enum = PGEnum("positive", "negative", "neutral", name="sentiment_label", create_type=False)
+article_status = PGEnum("pending", "verified", "rejected", name="article_status", create_type=False)
 
 class Profile(Base):
     __tablename__ = "profiles"
@@ -115,7 +116,8 @@ class NewsSource(Base):
     is_active = Column(Boolean, nullable=False, server_default=text("true"))
     created_at = Column(DateTime(timezone=True), server_default=text("now()"))
     updated_at = Column(DateTime(timezone=True), server_default=text("now()"))
-
+    
+    
 class NewsArticle(Base):
     __tablename__ = "news_articles"
 
@@ -127,6 +129,7 @@ class NewsArticle(Base):
     published_date = Column(DateTime(timezone=True), nullable=True)
     province = Column(String, nullable=True)
     keywords = Column(ARRAY(String), nullable=True)
+    status = Column(article_status, nullable=False, default="pending")  # renamed from sentiment_verifiy
     sentiment_score = Column(Float, nullable=True)
     sentiment_label = Column(String(20), nullable=True)
     scraped_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -134,3 +137,5 @@ class NewsArticle(Base):
     sentiment_updated_at = Column(DateTime, nullable=True)
     sentiment_model_version = Column(String(50), nullable=True)
     is_election_related = Column(Boolean, nullable=False, default=False)
+    verified_by = Column(UUID(as_uuid=True), nullable=True)
+    verified_at = Column(DateTime(timezone=True), nullable=True)

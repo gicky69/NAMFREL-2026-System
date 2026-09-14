@@ -2,10 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from "react-dom";
 import { auth } from "@/lib/firebase";
 import { supabase } from '@/lib/supabase';
-import { UserProfile, Incident, IncidentCategory, NewsSource } from '@/types';
+import { UserProfile, Incident, IncidentCategory, NewsSource, NewsArticle} from '@/types';
 import { getIdToken } from 'firebase/auth';
-import { Users, AlertTriangle, Tags, Globe, Check, X, Plus, MapPin, User, Clock, ExternalLink } from 'lucide-react';
-type TabType = 'users' | 'reports' | 'categories' | 'sources';
+import { Users, AlertTriangle, Tags, Globe, Check, X, Plus, MapPin, User, Clock, ExternalLink, FileText } from 'lucide-react';
+type TabType = 'users' | 'reports' | 'categories' | 'sources' | 'articles';
 
 export default function Admin() {
   const [activeTab, setActiveTab] = useState<TabType>('users');
@@ -31,11 +31,16 @@ export default function Admin() {
   const [statusMessage, setStatusMessage] = useState("");
   const [showStatusPage, setShowStatusPage] = useState(false);
   
+  // News Article
+  const [articles, setArticles] = useState<NewsArticle[]>([]);
+  const [pendingArticles, setPendingArticles] = useState<NewsArticle[]>([]);
+  
   useEffect(() => {
     fetchUsers();
     fetchIncidents();
     fetchCategories();
     fetchSources();
+    fecthArticles();
   }, []);
 
   const fetchUsers = async () => {
@@ -97,6 +102,19 @@ export default function Admin() {
     const res = await fetch(`${API_URL}/api/sources`);
     if (res.ok) setSources(await res.json());
   }, []);
+
+  const fecthArticles = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/articles?limit=100`);
+      if (!res.ok) throw new Error(`Failed to fetch articles with status ${res.status}`);
+      const data: NewsArticle[] = await res.json();
+      setArticles(data || []);
+      setPendingArticles((data || []).filter((a) => a.status === "pending"));
+    } catch (err) {
+      console.error("Error fetching articles", err);
+    }
+    
+  }, [API_URL]);
 
   const handleVerifyUser = async (id: string, newRole: string) => {
     try {
@@ -180,6 +198,57 @@ export default function Admin() {
         setShowStatusPage(false);
       }, 3000);
       alert("Failed to update report.");
+    }
+  };
+
+  const handleVerifyArticles = async (id: string, isVerified: boolean) => {
+    const token = await auth.currentUser?.getIdToken();
+    
+    try {
+      if (isVerified) {
+        const res = await fetch(`${API_URL}/api/articles/${id}/status`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: "verified" }),
+        });
+        if (!res.ok) throw new Error(`Failed to update article (${res.status})`);
+
+        const updated: NewsArticle = await res.json();
+        setPendingArticles((prev) => prev.filter((a) => a.id !== id));
+        setArticles((prev) => prev.map((a) => (a.id === id ? updated : a)));
+
+        setTitle("Article Verified");
+        setStatusMessage("Article was successfully verified.");
+      } else {
+        const res = await fetch(`${API_URL}/api/articles/${id}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!res.ok) throw new Error(`Failed to delete article (${res.status})`);
+
+        // Remove from both lists entirely, since it no longer exists in the DB
+        setPendingArticles((prev) => prev.filter((a) => a.id !== id));
+        setArticles((prev) => prev.filter((a) => a.id !== id));
+
+        setTitle("Article Rejected");
+        setStatusMessage("Article was successfully rejected and removed.");
+      }
+
+      setShowStatusPage(true);
+      setTimeout(() => setShowStatusPage(false), 3000);
+    } catch (error) {
+      console.error('Error updating article:', error);
+      setTitle(isVerified ? "Error Verifying Article" : "Error Rejecting Article");
+      setStatusMessage(
+        `Failed (${error instanceof Error ? error.message : "unknown error"})`
+      );
+      setShowStatusPage(true);
+      setTimeout(() => setShowStatusPage(false), 3000);
     }
   };
 
@@ -356,6 +425,7 @@ export default function Admin() {
             { id: 'reports', label: 'Report Verification', icon: AlertTriangle },
             { id: 'categories', label: 'Incident Categories', icon: Tags },
             { id: 'sources', label: 'News Sources', icon: Globe },
+            { id: 'articles', label: 'News Verification', icon: FileText },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -574,6 +644,76 @@ export default function Admin() {
                   >
                     <X size={14} />
                   </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'articles' && (
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Unverified News Articles</h2>
+
+            <div className="space-y-6">
+              {pendingArticles.length === 0 && (
+                <p className="text-gray-500 py-4 border-2 border-dashed border-gray-200 rounded-lg text-center bg-gray-50">
+                  No pending articles to verify.
+                </p>
+              )}
+
+              {pendingArticles.map((article) => (
+                <div key={article.id} className="p-5 border border-gray-200 rounded-xl bg-white shadow-sm flex flex-col gap-4 transition hover:shadow-md">
+                  <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <h3 className="font-semibold text-lg text-gray-900 leading-tight">{article.title}</h3>
+                      <p className="text-sm text-gray-500 flex items-center gap-2">
+                        <Clock size={14} />
+                        {article.published_date ? new Date(article.published_date).toLocaleString() : "No date"}
+                        {article.source && <span className="ml-2">· {article.source}</span>}
+                      </p>
+                      {article.summary && (
+                        <p className="text-gray-700 text-sm bg-gray-50 p-3 rounded-md border border-gray-100">
+                          {article.summary}
+                        </p>
+                      )}
+                      {article.url && (
+                        <a
+                          href={article.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800"
+                        >
+                          View original <ExternalLink size={12} />
+                        </a>
+                      )}
+                      {article.sentiment_label && (
+                        <span className={`inline-block ml-2 px-2.5 py-1 text-xs rounded-full font-medium capitalize border ${
+                          article.sentiment_label === 'negative' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                          article.sentiment_label === 'positive' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                          'bg-gray-50 text-gray-600 border-gray-200'
+                        }`}>
+                          AI: {article.sentiment_label}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-row md:flex-col space-x-2 md:space-x-0 md:space-y-2 shrink-0 md:w-32">
+                      <button
+                        onClick={() => handleVerifyArticles(article.id, true)}
+                        className="flex-1 flex items-center justify-center space-x-1 px-4 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors shadow-sm"
+                      >
+                        <Check size={16} />
+                        <span className="font-medium">Verify</span>
+                      </button>
+                      <button
+                        onClick={() => handleVerifyArticles(article.id, false)}
+                        className="flex-1 flex items-center justify-center space-x-1 px-4 py-2.5 bg-white border border-red-200 text-red-600 rounded-md hover:bg-red-50 transition-colors shadow-sm"
+                      >
+                        <X size={16} />
+                        <span className="font-medium">Reject</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
