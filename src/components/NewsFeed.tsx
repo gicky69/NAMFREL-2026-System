@@ -12,6 +12,7 @@ export default function NewsFeed() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [scraping, setScraping] = useState(false);
+  const [globalScraping, setGlobalScraping] = useState(false);
   const [scrapeMessage, setScrapeMessage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sentimentFilter, setSentimentFilter] = useState<SentimentLabel | "all">("all");
@@ -41,30 +42,77 @@ export default function NewsFeed() {
     fetchArticles();
   }, [fetchArticles]);
 
+  const fetchScrapeStatus = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `${API_URL}/api/news/scrape-status`
+      );
+
+      if (!response.ok) return;
+
+      const result = await response.json();
+      setGlobalScraping(result.is_scraping);
+    } catch {
+      // Keep the current status if the status check fails
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchScrapeStatus();
+  }, [fetchScrapeStatus]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchScrapeStatus();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [fetchScrapeStatus]);
+
   const handleScrape = async () => {
     setScraping(true);
+    setGlobalScraping(true);
     setScrapeMessage(null);
+
     try {
       const response = await fetch(`${API_URL}/api/news/scrape`, {
-        method: "POST"
+        method: "POST",
       });
 
-      if (!response.ok) throw new Error(`Scrape Failed (${response.status})`);
-      const result = await response.json();
-      setScrapeMessage(
-        `Scrape ${result.scraped || 0} new articles, skipped ${result.skipped || 0} existing/non-BARMM articles${
-          result.errors ? `. Some source issues ${result.errors.join("; ")}`: ""
-        }
-        `
-      )
+      if (response.status === 409) {
+        setScrapeMessage("Error: A scrape is already in progress.");
+        await fetchScrapeStatus();
+        return;
+      }
 
-      // 🔄 Refresh the News Feed UI
+      if (!response.ok) {
+        throw new Error(`Scrape Failed (${response.status})`);
+      }
+
+      const result = await response.json();
+
+      setScrapeMessage(
+        `Scraped ${result.scraped || 0} new articles, skipped ${
+          result.skipped || 0
+        } existing/non-BARMM articles${
+          result.errors?.length
+            ? `. Some source issues: ${result.errors.join("; ")}`
+            : ""
+        }`
+      );
+
+      // Refresh News Feed UI
       await fetchArticles();
 
     } catch (err) {
-      setScrapeMessage(`Erorr; ${err instanceof Error ? err.message : "Unknown Error"}`);
+      setScrapeMessage(
+        `Error: ${err instanceof Error ? err.message : "Unknown Error"}`
+      );
     } finally {
       setScraping(false);
+
+      // Get the actual global status from backend
+      await fetchScrapeStatus();
     }
   };
 
@@ -96,9 +144,22 @@ export default function NewsFeed() {
             BARMM election news scraped from Philippine news outlets with automated sentiment analysis
           </p>
         </div>
-        <button onClick={handleScrape} disabled={scraping} className="btn-primary flex items-center gap-2 text-sm self-start">
-          <RefreshCw className={`w-4 h-4 ${scraping ? "animate-spin" : ""}`} />
-          {scraping ? "Scraping..." : "Scrape Latest News"}
+        <button
+          onClick={handleScrape}
+          disabled={scraping || globalScraping}
+          className="btn-primary flex items-center gap-2 text-sm self-start disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <RefreshCw
+            className={`w-4 h-4 ${
+              scraping || globalScraping ? "animate-spin" : ""
+            }`}
+          />
+
+          {scraping
+            ? "Scraping..."
+            : globalScraping
+            ? "Scraping in progress..."
+            : "Scrape Latest News"}
         </button>
       </div>
 
