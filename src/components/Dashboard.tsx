@@ -181,8 +181,20 @@
     // Only count incidents that are verified in the database
     if (i.status === 'verified') {
       // Safely convert to uppercase to match the GeoJSON properties later
+      const normalizedMunicipality = (i.municipality || "").toUpperCase();
       const normalizedProvince = (i.province || "").toUpperCase();
-      provinceCounts[normalizedProvince] = (provinceCounts[normalizedProvince] || 0) + 1;
+
+      // Cotabato City is an independent city, not actually part of any BARMM
+      // province polygon — it's rendered as its own overlay on the map, so it
+      // needs its own bucket here too. Otherwise these incidents would silently
+      // get folded into Maguindanao del Norte's count (since that's the province
+      // value we store for it) and the city overlay would always show 0.
+      const key =
+        normalizedMunicipality === "COTABATO CITY" || normalizedMunicipality === "COTABATO CITY (ICC)"
+          ? "COTABATO CITY (ICC)"
+          : normalizedProvince;
+
+      provinceCounts[key] = (provinceCounts[key] || 0) + 1;
     }
   });
 
