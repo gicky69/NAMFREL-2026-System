@@ -7,7 +7,9 @@ when they redesign" problem) entirely -- see _scrape_rss_source(). Sources
 with no RSS feed (e.g. Luwaran, which is a custom CMS with no /feed/ at
 all) use _scrape_html_source() instead, configured with a listing_url and
 CSS selectors. Requires beautifulsoup4 (`pip install beautifulsoup4`),
-which isn't needed by the plain RSS path.
+which isn't needed by the plain RSS path. If either strategy fails, the
+source is also tried with newspaper3k, which discovers article links and
+extracts their metadata and text.
 
 Bot-detection note: some sources (Manila Bulletin, ABS-CBN as of the last
 check) return 403 Forbidden to plain httpx requests -- this is bot
@@ -105,6 +107,8 @@ HTML_SOURCES = [
         "date_format": None,
     },
 ]
+
+NEWSPAPER_MAX_ARTICLES = 25
 
 
 def _clean_html(text: str) -> str:
@@ -221,6 +225,8 @@ def _scrape_rss_source(client: httpx.Client, source: dict, db: Session) -> tuple
         content = resp.content
 
     feed = feedparser.parse(content)
+    if not feed.entries:
+        raise RuntimeError("RSS feed was empty or could not be parsed")
 
     for entry in feed.entries:
         title = getattr(entry, "title", None)
@@ -233,6 +239,67 @@ def _scrape_rss_source(client: httpx.Client, source: dict, db: Session) -> tuple
             scraped += 1
         else:
             skipped += 1
+
+    return scraped, skipped
+
+
+def _scrape_newspaper_source(source: dict, db: Session) -> tuple[int, int]:
+    """Fallback scraper for sources whose RSS or CSS listing is unavailable.
+
+    newspaper3k discovers article links from a source page, then extracts the
+    article title, body, canonical URL, and publication date. The full body is
+    passed to _save_if_new() so relevance terms outside a short description
+    can still make an article eligible; storage continues to use its existing
+    500-character summary limit.
+    """
+    from newspaper import Config, build
+    from newspaper.article import ArticleException
+
+    url = source.get("listing_url") or source.get("feed_url")
+    if not url:
+        raise RuntimeError("source has no URL for newspaper3k fallback")
+
+    config = Config()
+    config.browser_user_agent = REQUEST_HEADERS["User-Agent"]
+    config.request_timeout = 15
+    paper = build(
+        url,
+        config=config,
+        memoize_articles=False,
+        fetch_images=False,
+    )
+
+    if not paper.articles:
+        raise RuntimeError("newspaper3k found no article links")
+
+    scraped, skipped = 0, 0
+    parsed_articles = 0
+    for article in paper.articles[:NEWSPAPER_MAX_ARTICLES]:
+        try:
+            article.download()
+            article.parse()
+        except (ArticleException, OSError, ValueError):
+            # A single malformed or blocked article should not discard the
+            # other links newspaper3k discovered from the source.
+            continue
+
+        parsed_articles += 1
+        title = article.title
+        summary = article.meta_description or article.text
+        if _save_if_new(
+            db,
+            title,
+            article.url,
+            summary,
+            source["name"],
+            article.publish_date,
+        ):
+            scraped += 1
+        else:
+            skipped += 1
+
+    if not parsed_articles:
+        raise RuntimeError("newspaper3k could not parse any discovered articles")
 
     return scraped, skipped
 
@@ -323,7 +390,17 @@ def scrape_all_sources(db: Session) -> tuple[int, int, list[str]]:
                 db.commit()
             except Exception as exc:  # noqa: BLE001
                 db.rollback()
-                errors.append(f"{source['name']}: {exc}")
+                try:
+                    s, sk = _scrape_newspaper_source(source, db)
+                    scraped += s
+                    skipped += sk
+                    db.commit()
+                except Exception as fallback_exc:  # noqa: BLE001
+                    db.rollback()
+                    errors.append(
+                        f"{source['name']}: {exc}; "
+                        f"newspaper3k fallback failed: {fallback_exc}"
+                    )
 
     return scraped, skipped, errors
 

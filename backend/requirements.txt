@@ -10,4 +10,5 @@ firebase-admin
 feedparser  
 playwright==1.48.0
 apscheduler
+newspaper3k==0.2.8
  
