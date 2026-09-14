@@ -16,6 +16,11 @@
     incidents: Incident[];
   }
 
+  type IncidentCategory = {
+    name: string;
+    description: string | null;
+  };
+
   export default function Dashboard() {
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -28,7 +33,7 @@
     const [scrapeErrors, setScrapeErrors] = useState<string[]>([]);
     const [showScrapeErrors, setShowScrapeErrors] = useState(false);
 
-  const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async () => {
       setLoading(true);
       setError(null);
       try {
@@ -414,28 +419,37 @@
                   <p className="text-sm text-slate-400 py-8 text-center">No incidents reported yet.</p>
                 ) : (
                   <div className="space-y-3">
-                    {INCIDENT_TYPES.map((type) => {
-                      const count = incidentTypeCounts[type.value] || 0;
-                      const pct = incidents.length > 0 ? (count / incidents.length) * 100 : 0;
-                      return (
-                        <div key={type.value}>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: type.color }} />
-                              {type.label}
-                            </span>
-                            <span className="text-sm text-slate-500">{count}</span>
+                    {Object.entries(incidentTypeCounts)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([type, count]) => {
+                        const pct =
+                          incidents.length > 0
+                            ? (count / incidents.length) * 100
+                            : 0;
+
+                        return (
+                          <div key={type}>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-sm font-medium text-slate-700">
+                                {type.replace(/_/g, " ")}
+                              </span>
+
+                              <span className="text-sm text-slate-500">
+                                {count}
+                              </span>
+                            </div>
+
+                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
                           </div>
-                          <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full transition-all duration-700 ease-out"
-                              style={{ width: `${pct}%`, backgroundColor: type.color }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                   </div>
+
                 )}
               </div>
 
