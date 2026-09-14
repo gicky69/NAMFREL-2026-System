@@ -456,7 +456,6 @@ export default function IncidentsList() {
                       </span>
                     </div>
                   </div>
-                  <SentimentBadge label={incident.sentiment_label} score={incident.sentiment_score} />
                 </div>
 
 
