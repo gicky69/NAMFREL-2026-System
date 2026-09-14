@@ -7,4 +7,6 @@ SQLAlchemy==2.0.35
 uvicorn[standard]==0.34.0
 psycopg2-binary
 firebase-admin
-feedparser
+feedparser  
+playwright==1.48.0
+ 
