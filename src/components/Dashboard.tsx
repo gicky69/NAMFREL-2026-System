@@ -249,7 +249,7 @@
                   {(["positive", "negative", "neutral"] as SentimentLabel[]).map((label) => {
                     const count = sentimentCounts[label];
                     const pct = totalArticles > 0 ? (count / totalArticles) * 100 : 0;
-                    const color = label === "positive" ? "bg-green-500" : label === "negative" ? "bg-red-500" : "bg-slate-400";
+                    const color = label === "positive" ? "bg-green-100" : label === "negative" ? "bg-red-100" : "bg-slate-400";
                     return (
                       <div key={label}>
                         <div className="flex items-center justify-between mb-1.5">

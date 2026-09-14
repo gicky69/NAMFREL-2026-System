@@ -15,6 +15,7 @@ router = APIRouter(
 
 class ChangeRoleRequest(BaseModel):
     role: str
+    is_verified: bool | None = None
 
 class AddCategoryRequest(BaseModel):
     name: str
@@ -67,13 +68,18 @@ def change_role(
     # Change the selected user's role
     user.role = payload.role
 
+    # Update the is_verified field if provided
+    if payload.is_verified is not None:
+        user.is_verified = payload.is_verified
+
     db.commit()
     db.refresh(user)
 
     return {
         "message": "Role updated successfully",
         "id": str(user.id),
-        "role": user.role
+        "role": user.role,
+        "is_verified": user.is_verified
     }
 
 # get users endpoint
