@@ -7,7 +7,17 @@ when they redesign" problem) entirely -- see _scrape_rss_source(). Sources
 with no RSS feed (e.g. Luwaran, which is a custom CMS with no /feed/ at
 all) use _scrape_html_source() instead, configured with a listing_url and
 CSS selectors. Requires beautifulsoup4 (`pip install beautifulsoup4`),
-which isn't needed by the RSS path.
+which isn't needed by the plain RSS path.
+
+Bot-detection note: some sources (Manila Bulletin, ABS-CBN as of the last
+check) return 403 Forbidden to plain httpx requests -- this is bot
+protection, not a bad URL/feed. For those, this module fetches through a
+real headless Chromium browser via Playwright instead of httpx, since a
+real browser's TLS/JS fingerprint gets past checks a raw HTTP client can't.
+Playwright is deliberately NOT used for every source -- it's much slower
+per-request than httpx, so it's reserved for sources that are confirmed to
+need it (see BROWSER_FETCH_SOURCES below) plus the HTML-listing path
+(_scrape_html_source), which needs a rendered page regardless.
 """
 from datetime import datetime
 from email.utils import parsedate_to_datetime
@@ -16,6 +26,7 @@ from urllib.parse import urljoin
 import httpx
 import feedparser
 from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright
 from sqlalchemy.orm import Session
 
 from app.models import NewsArticle, NewsSource
@@ -67,31 +78,17 @@ REQUEST_HEADERS = {
     "Accept-Encoding": "gzip, deflate",   # removed "br" -- brotli isn't installed
 }
 
-# All six sources from the original edge function, restored. Two notes
-# carried over from prior debugging -- keep an eye on these in the
-# `errors` list that scrape_all_sources() returns:
-#   - GMA News: the edge function's URL (gmanetwork.com/news/rss/feed/headlines)
-#     was 404ing as of the last check, so this keeps the working replacement
-#     URL instead of reverting to a known-dead one.
-#   - Manila Bulletin / ABS-CBN: both were returning 403 Forbidden (bot
-#     protection, not a bad URL) as of the last check. They're restored
-#     here per request; scrape_all_sources() isolates per-source failures,
-#     so if they're still blocked you'll see it in `errors` rather than
-#     losing articles from the other sources.
-#   - Rappler (Elections): confirmed via --debug that the general
-#     rappler.com/feed is a site-wide firehose capped at ~10 entries, so a
-#     BARMM election story gets pushed out of that window within days once
-#     unrelated national news fills the rest of the feed. Rappler exposes
-#     per-section feeds at <section-path>/feed/ (confirmed working for
-#     /entertainment, /sports, /people, /newsbreak, /philippines/weather),
-#     so this adds the Philippine-elections section feed as a second
-#     Rappler source -- almost everything in it is election coverage, so a
-#     BARMM parliamentary story should survive in the top-10 window much
-#     longer than on the general feed. NOT independently verified here
-#     (web_fetch to rappler.com is blocked from this environment) --
-#     confirm with `python scraper.py --debug` that it actually returns
-#     RSS entries before relying on it; if it 404s or returns 0 entries,
-#     drop this line and fall back to increasing scrape frequency instead.
+# Names (must match NewsSource.name exactly) of RSS sources that are known
+# to 403 plain httpx requests. Their feed_url is fetched through a real
+# headless browser instead. Keep this list as short as possible --
+# only add a source here once you've actually confirmed via
+# `python -m app.services.scraper --debug` that httpx gets blocked and a
+# browser fetch doesn't.
+BROWSER_FETCH_SOURCES = {
+    "Manila Bulletin",
+    "ABS-CBN",
+}
+
 HTML_SOURCES = [
     {
         "name": "Luwaran",
@@ -158,6 +155,25 @@ def _parse_pub_date(entry):
         return None
 
 
+def _fetch_via_browser(url: str, wait_until: str = "networkidle", timeout_ms: int = 20000) -> bytes:
+    """Fetches a URL's fully-rendered response body through a real headless
+    Chromium browser instead of httpx. Used for sources in
+    BROWSER_FETCH_SOURCES and for every HTML-listing source, since a real
+    browser's TLS/JS fingerprint gets past bot-detection checks (Cloudflare
+    challenges, 403-on-plain-requests) that a raw HTTP client can't."""
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        try:
+            page = browser.new_page(user_agent=REQUEST_HEADERS["User-Agent"])
+            response = page.goto(url, wait_until=wait_until, timeout=timeout_ms)
+            if response is None:
+                raise RuntimeError(f"No response received for {url}")
+            body = response.body()
+        finally:
+            browser.close()
+    return body
+
+
 def _save_if_new(db: Session, title: str, url: str, summary: str, source_name: str, published_date) -> bool:
     if not title or not url:
         return False
@@ -167,6 +183,8 @@ def _save_if_new(db: Session, title: str, url: str, summary: str, source_name: s
     exists = db.query(NewsArticle).filter(NewsArticle.url == url).first()
     if exists:
         return False
+
+    score, label = analyze_sentiment(summary or title)
 
     article = NewsArticle(
         title=title,
@@ -185,11 +203,18 @@ def _save_if_new(db: Session, title: str, url: str, summary: str, source_name: s
     db.add(article)
     return True
 
+
 def _scrape_rss_source(client: httpx.Client, source: dict, db: Session) -> tuple[int, int]:
     scraped, skipped = 0, 0
-    resp = client.get(source["feed_url"])
-    resp.raise_for_status()
-    feed = feedparser.parse(resp.content)
+
+    if source["name"] in BROWSER_FETCH_SOURCES:
+        content = _fetch_via_browser(source["feed_url"])
+    else:
+        resp = client.get(source["feed_url"])
+        resp.raise_for_status()
+        content = resp.content
+
+    feed = feedparser.parse(content)
 
     for entry in feed.entries:
         title = getattr(entry, "title", None)
@@ -226,11 +251,16 @@ def _parse_html_date(raw: str | None, date_format: str | None) -> datetime | Non
         return None
 
 
-def _scrape_html_source(client: httpx.Client, source: dict, db: Session) -> tuple[int, int]:
+def _scrape_html_source(source: dict, db: Session) -> tuple[int, int]:
     """HTML-listing counterpart to _scrape_rss_source(), for sources with
-    no RSS feed. Configure a source in SOURCES with "is_html": True,
+    no RSS feed. Configure a source in HTML_SOURCES with "is_html": True,
     "listing_url", "base_url", and a "selectors" dict -- see the Luwaran
-    entry (commented out) above for the shape and field meanings.
+    entry above for the shape and field meanings.
+
+    Now fetches through a real headless browser (_fetch_via_browser)
+    instead of httpx, since HTML-listing sources are exactly the kind
+    (custom CMS, no public API/feed) most likely to sit behind
+    bot-detection or need JS to render their article list.
 
     Design note: this deliberately reuses _save_if_new() for the actual
     save step, same as the RSS path -- relevance filtering, sentiment
@@ -239,10 +269,9 @@ def _scrape_html_source(client: httpx.Client, source: dict, db: Session) -> tupl
     fetch-and-parse step differs between RSS and HTML sources.
     """
     scraped, skipped = 0, 0
-    resp = client.get(source["listing_url"])
-    resp.raise_for_status()
+    html_bytes = _fetch_via_browser(source["listing_url"])
 
-    soup = BeautifulSoup(resp.text, "html.parser")
+    soup = BeautifulSoup(html_bytes, "html.parser")
     sel = source["selectors"]
     base_url = source.get("base_url", source["listing_url"])
 
@@ -279,7 +308,7 @@ def scrape_all_sources(db: Session) -> tuple[int, int, list[str]]:
         for source in sources:
             try:
                 if source.get("is_html"):
-                    s, sk = _scrape_html_source(client, source, db)
+                    s, sk = _scrape_html_source(source, db)
                 else:
                     s, sk = _scrape_rss_source(client, source, db)
                 scraped += s
@@ -295,17 +324,17 @@ def scrape_all_sources(db: Session) -> tuple[int, int, list[str]]:
 def _check_feeds(debug: bool = False):
     """
     Sanity-checks every source in SOURCES without touching the database.
-    Run directly with: python scraper.py
+    Run directly with: python -m app.services.scraper
     Run with --debug to also print every entry's title, whether it passed
     _is_relevant(), and whether it's election-specific (_is_election_related)
     -- useful for answering "why was article X skipped?" or "why isn't this
     showing as election coverage?" without guessing:
-        python scraper.py --debug
+        python -m app.services.scraper --debug
     """
     from app.db import SessionLocal
-    
+
     db = SessionLocal()
-    
+
     try:
         sources = _get_db_sources(db) + HTML_SOURCES
         with httpx.Client(timeout=15.0, follow_redirects=True, headers=REQUEST_HEADERS) as client:
@@ -313,13 +342,12 @@ def _check_feeds(debug: bool = False):
                 name = source["name"]
                 try:
                     if source.get("is_html"):
-                        resp = client.get(source["listing_url"])
-                        soup = BeautifulSoup(resp.text, "html.parser")
+                        html_bytes = _fetch_via_browser(source["listing_url"])
+                        soup = BeautifulSoup(html_bytes, "html.parser")
                         sel = source["selectors"]
-                        base_url = source.get("base_url", source["listing_url"])
                         blocks = soup.select(sel["article"])
                         status = "OK" if blocks else "0 MATCHES -- CHECK SELECTORS"
-                        print(f"{name:20s} HTTP {resp.status_code}  {len(blocks):3d} entries  {status}")
+                        print(f"{name:20s} (browser)  {len(blocks):3d} entries  {status}")
                         entries = []
                         for block in blocks:
                             title_el = block.select_one(sel["title"])
@@ -338,10 +366,16 @@ def _check_feeds(debug: bool = False):
                                 mark = "ELECTION" if election else ("KEEP" if relevant else "skip")
                                 print(f"    [{mark}] {title!r}")
                     else:
-                        resp = client.get(source["feed_url"])
-                        feed = feedparser.parse(resp.content)
+                        if name in BROWSER_FETCH_SOURCES:
+                            content = _fetch_via_browser(source["feed_url"])
+                            fetch_label = "browser"
+                        else:
+                            resp = client.get(source["feed_url"])
+                            content = resp.content
+                            fetch_label = f"HTTP {resp.status_code}"
+                        feed = feedparser.parse(content)
                         status = "OK" if feed.entries else "EMPTY/PARSE FAILED"
-                        print(f"{name:20s} HTTP {resp.status_code}  {len(feed.entries):3d} entries  {status}")
+                        print(f"{name:20s} {fetch_label}  {len(feed.entries):3d} entries  {status}")
                         if feed.entries:
                             print(f"{'':20s} e.g. {feed.entries[0].get('title', '(no title)')!r}")
                         if debug:
@@ -380,7 +414,7 @@ if __name__ == "__main__":
 #        https://mindanaogoldstardaily.com/category/barmm (Gold Star Daily)
 #      Neither of these has a discovered RSS feed, so they'd need the
 #      HTML listing_url + CSS selector approach instead of feedparser --
-#      see the earlier version of this file for that pattern. This route
+#      see _scrape_html_source() above for that pattern. This route
 #      structurally can't lose an article to unrelated national news,
 #      since nothing outside the region ever enters that feed to begin with.
 #   3. Consider also checking COMELEC's own press releases/site once the
