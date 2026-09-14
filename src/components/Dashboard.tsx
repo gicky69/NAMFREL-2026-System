@@ -144,7 +144,7 @@
     const recentIncidents = incidents.slice(0, 5);
 
     const SentimentIcon = avgSentiment > 0.15 ? TrendingUp : avgSentiment < -0.15 ? TrendingDown : Minus;
-    const sentimentColor = avgSentiment > 0.15 ? "text-green-600" : avgSentiment < -0.15 ? "text-red-600" : "text-slate-500";
+    const sentimentColor = avgSentiment > 0.15 ? "text-green-300" : avgSentiment < -0.15 ? "text-red-300" : "text-slate-300";
 
     return (
       <div className="space-y-6">
@@ -249,7 +249,7 @@
                   {(["positive", "negative", "neutral"] as SentimentLabel[]).map((label) => {
                     const count = sentimentCounts[label];
                     const pct = totalArticles > 0 ? (count / totalArticles) * 100 : 0;
-                    const color = label === "positive" ? "bg-green-500" : label === "negative" ? "bg-red-500" : "bg-slate-400";
+                    const color = label === "positive" ? "bg-green-300" : label === "negative" ? "bg-red-300" : "bg-slate-400";
                     return (
                       <div key={label}>
                         <div className="flex items-center justify-between mb-1.5">

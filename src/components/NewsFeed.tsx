@@ -57,6 +57,10 @@ export default function NewsFeed() {
         }
         `
       )
+
+      // 🔄 Refresh the News Feed UI
+      await fetchArticles();
+
     } catch (err) {
       setScrapeMessage(`Erorr; ${err instanceof Error ? err.message : "Unknown Error"}`);
     } finally {
@@ -163,7 +167,7 @@ export default function NewsFeed() {
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-2 flex-wrap">
-                    <span className="text-xs font-semibold text-teal-700 bg-teal-50 px-2 py-0.5 rounded">
+                    <span className="text-xs font-semibold text-white bg-primary px-2 py-0.5 rounded">
                       {article.source || "Unknown"}
                     </span>
                     <span className="text-xs text-slate-400">{formatDate(article.published_date)}</span>
@@ -197,7 +201,7 @@ export default function NewsFeed() {
                       href={article.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700 font-medium transition-colors"
+                      className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary-dark font-medium transition-colors"
                     >
                       Read full article <ExternalLink className="w-3.5 h-3.5" />
                     </a>
