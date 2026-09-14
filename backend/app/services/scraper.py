@@ -176,13 +176,11 @@ def _save_if_new(db: Session, title: str, url: str, summary: str, source_name: s
         summary=summary[:500] if summary else None,
         keywords=_extract_keywords(title, summary),
         province=_detect_province(title, summary),
-        # Broad BARMM/regional relevance still decides what gets SAVED
-        # (via _is_relevant() above) -- non-election regional news is kept,
-        # since it may still matter for context later. This flag instead
-        # lets the dashboard/API filter down to election-only coverage on
-        # demand (?election_only=true) without losing the rest for good.
         is_election_related=_is_election_related(title, summary),
-        sentiment_status="pending",
+        status="pending",           # admin verification workflow (pending/verified/rejected)
+        sentiment_status="done",    # sentiment analysis workflow -- now complete
+        sentiment_score=score,
+        sentiment_label=label,
     )
     db.add(article)
     return True
