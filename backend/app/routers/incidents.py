@@ -23,7 +23,7 @@ def get_client_ip(request: Request):
 def list_incidents(
     limit: int = Query(default=100, le=500),
     status: list[str] | None = Query(default=None),
-    profile: Profile = Depends(require_roles("admin", "personnel", "super_admin")),
+    profile: Profile = Depends(require_roles("admin", "personnel", "super_admin", "display")),
     db: Session = Depends(get_db),
 ):
     query = db.query(Incident)
@@ -62,7 +62,7 @@ def create_incident(
 
 @router.get("/incident-types", response_model=list[IncidentCategoryOut])
 def list_incident_types(
-    profile: Profile = Depends(require_roles("admin", "personnel", "super_admin")),
+    profile: Profile = Depends(require_roles("admin", "personnel", "super_admin", "display")),
     db: Session = Depends(get_db)
 ):
     return db.query(IncidentCategory).all()
