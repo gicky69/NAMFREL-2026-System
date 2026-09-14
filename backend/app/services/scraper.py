@@ -196,7 +196,7 @@ def _save_if_new(db: Session, title: str, url: str, summary: str, source_name: s
         province=_detect_province(title, summary),
         is_election_related=_is_election_related(title, summary),
         status="pending",           # admin verification workflow (pending/verified/rejected)
-        sentiment_status="done",    # sentiment analysis workflow -- now complete
+        sentiment_status="pending",    # sentiment analysis workflow -- now complete
         sentiment_score=score,
         sentiment_label=label,
     )
