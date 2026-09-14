@@ -4,6 +4,7 @@ import type { Layer, PathOptions } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 import barmmData from "@/data/public/barmm.json";
+import cotabatoCityData from "@/data/public/cotabato-city.json";
 
 interface ProvinceMapProps {
   provinceCounts: Record<string, number>;
@@ -27,6 +28,7 @@ const LEGEND_ITEMS = [
 
 export function ProvinceMap({ provinceCounts }: ProvinceMapProps) {
   const geoJsonData = barmmData as any;
+  const cotabatoGeoJson = cotabatoCityData as any;
 
   const styleFeature = (feature: any): PathOptions => {
     let provinceName =
@@ -41,7 +43,8 @@ export function ProvinceMap({ provinceCounts }: ProvinceMapProps) {
     }
 
     const normalizedName = provinceName.toUpperCase();
-    const count = provinceCounts[normalizedName] || 0;
+    const lookupName = normalizedName === "COTABATO CITY" ? "COTABATO CITY (ICC)" : normalizedName;
+    const count = provinceCounts[lookupName] || 0;
 
     return {
       fillColor: getColor(count),
@@ -65,11 +68,15 @@ export function ProvinceMap({ provinceCounts }: ProvinceMapProps) {
       provinceName = "Special Geographic Area";
     }
 
+    const displayName = provinceName.toUpperCase() === "COTABATO CITY"
+      ? "Cotabato City (ICC)"
+      : provinceName;
     const normalizedName = provinceName.toUpperCase();
-    const count = provinceCounts[normalizedName] || 0;
+    const lookupName = normalizedName === "COTABATO CITY" ? "COTABATO CITY (ICC)" : normalizedName;
+    const count = provinceCounts[lookupName] || 0;
 
     layer.bindTooltip(
-      `<strong>${provinceName || "Unknown Region"}</strong><br/>${count} verified incident${count === 1 ? "" : "s"}`,
+      `<strong>${displayName || "Unknown Region"}</strong><br/>${count} verified incident${count === 1 ? "" : "s"}`,
       { sticky: true }
     );
   };
@@ -88,8 +95,20 @@ export function ProvinceMap({ provinceCounts }: ProvinceMapProps) {
         />
         {geoJsonData && (
           <GeoJSON
-            key={JSON.stringify(provinceCounts)}
+            key={`barmm-${JSON.stringify(provinceCounts)}`}
             data={geoJsonData}
+            style={styleFeature}
+            onEachFeature={onEachFeature}
+          />
+        )}
+        {/* Rendered after the BARMM layer so it draws on top of Maguindanao del
+            Norte's polygon — Cotabato City is an independent city and isn't
+            part of the BARMM province boundaries above, so it needs its own
+            overlay to show up as a distinct shaded area. */}
+        {cotabatoGeoJson && (
+          <GeoJSON
+            key={`cotabato-city-${JSON.stringify(provinceCounts)}`}
+            data={cotabatoGeoJson}
             style={styleFeature}
             onEachFeature={onEachFeature}
           />

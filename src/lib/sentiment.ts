@@ -89,6 +89,7 @@ export function formatDate(dateStr: string | null): string {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: "UTC"
   });
 }
 
@@ -102,5 +103,6 @@ export function formatDateTime(dateStr: string | null): string {
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    timeZone: "UTC"
   });
 }
