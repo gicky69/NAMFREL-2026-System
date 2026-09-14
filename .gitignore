@@ -27,3 +27,4 @@ __pycache__/
 
 backend/firebase-service-account.json
 backend/app/services/firebase.py
+.sf/orgs/00DdM000012GmYUUA0/metadata-catalog/catalog.json
