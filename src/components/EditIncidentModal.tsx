@@ -2,8 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { auth } from "@/lib/firebase";
 import { IncidentCategory } from '@/types';
-
-
+import { BARMM_PROVINCES, SEVERITY_LEVELS } from "@/types";
 
 export type IncidentReport = {
 	id: string | number,
@@ -199,7 +198,7 @@ export default function EditIncidentModal({
 
 					{categories.map((category) => (
 					<option
-						key={category.id ?? category.name}
+						key={category.name}
 						value={category.name}
 					>
 						{category.name}
@@ -232,13 +231,19 @@ export default function EditIncidentModal({
 				<label style={styles.label}>
 				Province
 
-				<input
-					value={form.province ?? ""}
-					onChange={(event) =>
-					updateField("province", event.target.value)
-					}
-					style={styles.input}
-				/>
+					<select
+						value={form.province ?? ""}
+						onChange={(event) =>
+							updateField("province", event.target.value)
+						}
+						className="input-field cursor-pointer"
+						style={styles.input}
+						>
+							<option value="">Select Province</option>
+							{BARMM_PROVINCES.map((prov) => (
+							<option key={prov} value={prov}>{prov}</option>
+							))}
+					</select>
 				</label>
 
 				<label style={styles.label}>
@@ -381,7 +386,7 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #cbd5e1",
     borderRadius: 7,
     fontSize: 14,
-    fontWeight: 400,
+	fontWeight: 400,
     outline: "none",
   },
 
@@ -406,9 +411,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     justifyContent: "flex-end",
     gap: 12,
-    marginTop: 24,
     paddingTop: 18,
-    borderTop: "1px solid #e2e8f0",
   },
 
   cancelButton: {
