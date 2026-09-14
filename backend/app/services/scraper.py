@@ -23,7 +23,7 @@ need it (see BROWSER_FETCH_SOURCES below) plus the HTML-listing path
 """
 from datetime import datetime
 from email.utils import parsedate_to_datetime
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import httpx
 import feedparser
@@ -91,20 +91,80 @@ BROWSER_FETCH_SOURCES = {
     "ABS-CBN",
 }
 
-HTML_SOURCES = [
+SOURCE_PROFILES = {
+    "inquirer": {
+        "feed_urls": ["https://www.inquirer.net/fullfeed", "https://www.inquirer.net/feed"],
+        "listing_url": "https://newsinfo.inquirer.net/",
+    },
+    "inquirer.net": {
+        "feed_urls": ["https://www.inquirer.net/fullfeed", "https://www.inquirer.net/feed"],
+        "listing_url": "https://newsinfo.inquirer.net/",
+    },
+    "luwaran": {
+        "feed_urls": ["https://www.luwaran.com/rss.xml", "https://www.luwaran.com/feed/"],
+        "listing_url": "https://www.luwaran.com/news/category/16",
+        "is_html": True,
+    },
+    "anfrel news": {
+        "feed_urls": ["https://anfrel.org/feed/"],
+        "listing_url": "https://anfrel.org/news/",
+    },
+    "anfrel": {
+        "feed_urls": ["https://anfrel.org/feed/"],
+        "listing_url": "https://anfrel.org/news/",
+    },
+    "mindanews": {
+        "feed_urls": ["https://www.mindanews.com/feed/"],
+        "listing_url": "https://www.mindanews.com/",
+    },
+    "tribune": {
+        "feed_urls": ["https://tribune.net.ph/feed/"],
+        "listing_url": "https://tribune.net.ph/",
+    },
+    "daily tribune": {
+        "feed_urls": ["https://tribune.net.ph/feed/"],
+        "listing_url": "https://tribune.net.ph/",
+    },
+    "daily tribune (headline)": {
+        "feed_urls": ["https://tribune.net.ph/feed/"],
+        "listing_url": "https://tribune.net.ph/",
+    },
+    "philippine news agency": {
+        "feed_urls": ["https://www.pna.gov.ph/latest.rss"],
+        "listing_url": "https://www.pna.gov.ph/",
+    },
+    "pna": {
+        "feed_urls": ["https://www.pna.gov.ph/latest.rss"],
+        "listing_url": "https://www.pna.gov.ph/",
+    },
+    "gma news online": {
+        "feed_urls": ["https://data.gmanews.tv/gno/rss/news/feed.xml"],
+        "listing_url": "https://www.gmanetwork.com/news/",
+    },
+    "gma news": {
+        "feed_urls": ["https://data.gmanews.tv/gno/rss/news/feed.xml"],
+        "listing_url": "https://www.gmanetwork.com/news/",
+    },
+    "philstar nation": {
+        "feed_urls": ["https://www.philstar.com/rss/headlines"],
+        "listing_url": "https://www.philstar.com/nation",
+    },
+    "philstar.com": {
+        "feed_urls": ["https://www.philstar.com/rss/headlines"],
+        "listing_url": "https://www.philstar.com/nation",
+    },
+    "mindanao gold star daily": {
+        "feed_urls": ["https://mindanaogoldstardaily.com/feed/"],
+        "listing_url": "https://mindanaogoldstardaily.com/category/barmm/",
+    },
+}
+
+BUILT_IN_SOURCES = [
     {
         "name": "Luwaran",
-        "is_html": True,
+        "feed_url": "https://www.luwaran.com/rss.xml",
         "listing_url": "https://www.luwaran.com/news/category/16",
-        "base_url": "https://luwaran.com",
-        "selectors": {
-            "article": "PLACEHOLDER",
-            "title": "PLACEHOLDER",
-            "link": "PLACEHOLDER",
-            "date": "PLACEHOLDER",
-            "summary": "PLACEHOLDER",
-        },
-        "date_format": None,
+        "is_html": True,
     },
 ]
 
@@ -118,7 +178,34 @@ def _clean_html(text: str) -> str:
 
 def _get_db_sources(db: Session) -> list[dict]:
     rows = db.query(NewsSource).filter(NewsSource.is_active.is_(True)).all()
-    return [{"name": row.name, "feed_url": row.url} for row in rows]
+    sources = [{"name": row.name, "feed_url": row.url} for row in rows]
+    configured_names = {source["name"].casefold() for source in sources}
+    sources.extend(
+        source for source in BUILT_IN_SOURCES
+        if source["name"].casefold() not in configured_names
+    )
+    return [_apply_source_profile(source) for source in sources]
+
+
+def _apply_source_profile(source: dict) -> dict:
+    """Add known feed/listing alternatives without overriding DB settings."""
+    profile = SOURCE_PROFILES.get(source["name"].strip().casefold())
+    if not profile:
+        return source
+
+    configured_url = source.get("feed_url")
+    feed_urls = list(profile.get("feed_urls", []))
+    if configured_url:
+        feed_urls.insert(0, configured_url)
+    source = {
+        **profile,
+        **source,
+        "feed_urls": list(dict.fromkeys(feed_urls)),
+    }
+    if profile.get("is_html"):
+        source["is_html"] = True
+    source.setdefault("listing_url", profile.get("listing_url"))
+    return source
 
 
 def _is_relevant(title: str, summary: str = "") -> bool:
@@ -187,7 +274,7 @@ def _fetch_via_browser(url: str, wait_until: str = "networkidle", timeout_ms: in
 def _save_if_new(db: Session, title: str, url: str, summary: str, source_name: str, published_date) -> bool:
     if not title or not url:
         return False
-    if not _is_election_related(title, summary):
+    if not _is_relevant(title, summary):
         return False
 
     exists = db.query(NewsArticle).filter(NewsArticle.url == url).first()
@@ -327,7 +414,7 @@ def _parse_html_date(raw: str | None, date_format: str | None) -> datetime | Non
 
 def _scrape_html_source(source: dict, db: Session) -> tuple[int, int]:
     """HTML-listing counterpart to _scrape_rss_source(), for sources with
-    no RSS feed. Configure a source in HTML_SOURCES with "is_html": True,
+    no RSS feed. Configure a source with "is_html": True,
     "listing_url", "base_url", and a "selectors" dict -- see the Luwaran
     entry above for the shape and field meanings.
 
@@ -346,8 +433,11 @@ def _scrape_html_source(source: dict, db: Session) -> tuple[int, int]:
     html_bytes = _fetch_via_browser(source["listing_url"])
 
     soup = BeautifulSoup(html_bytes, "html.parser")
-    sel = source["selectors"]
+    sel = source.get("selectors")
     base_url = source.get("base_url", source["listing_url"])
+
+    if not sel:
+        return _scrape_generic_html_links(soup, source, db)
 
     for block in soup.select(sel["article"]):
         title_el = block.select_one(sel["title"])
@@ -374,33 +464,73 @@ def _scrape_html_source(source: dict, db: Session) -> tuple[int, int]:
     return scraped, skipped
 
 
+def _scrape_generic_html_links(soup: BeautifulSoup, source: dict, db: Session) -> tuple[int, int]:
+    """Extract likely article links when a site has no stable CSS contract."""
+    scraped, skipped = 0, 0
+    base_url = source["listing_url"]
+    seen_urls = set()
+    for link in soup.select("a[href]"):
+        href = link.get("href")
+        title = link.get_text(" ", strip=True)
+        url = urljoin(base_url, href) if href else None
+        if (
+            not url
+            or url in seen_urls
+            or not title
+            or len(title) < 25
+            or urlparse(url).netloc != urlparse(base_url).netloc
+            or any(part in url.lower() for part in ("/category/", "/tag/", "/author/", "/page/"))
+        ):
+            continue
+        seen_urls.add(url)
+        if _save_if_new(db, title, url, "", source["name"], None):
+            scraped += 1
+        else:
+            skipped += 1
+        if scraped + skipped >= NEWSPAPER_MAX_ARTICLES:
+            break
+    if not seen_urls:
+        raise RuntimeError("HTML page contained no likely article links")
+    return scraped, skipped
+
+
 def scrape_all_sources(db: Session) -> tuple[int, int, list[str]]:
     scraped, skipped, errors = 0, 0, []
-    sources = _get_db_sources(db) + HTML_SOURCES
+    sources = _get_db_sources(db)
 
     with httpx.Client(timeout=15.0, follow_redirects=True, headers=REQUEST_HEADERS) as client:
         for source in sources:
-            try:
-                if source.get("is_html"):
-                    s, sk = _scrape_html_source(source, db)
-                else:
-                    s, sk = _scrape_rss_source(client, source, db)
-                scraped += s
-                skipped += sk
-                db.commit()
-            except Exception as exc:  # noqa: BLE001
-                db.rollback()
+            source_errors = []
+            attempts = []
+            if source.get("is_html"):
+                attempts.append(lambda: _scrape_html_source(source, db))
+            else:
+                for feed_url in source.get("feed_urls", [source.get("feed_url")]):
+                    attempts.append(
+                        lambda feed_url=feed_url: _scrape_rss_source(
+                            client, {**source, "feed_url": feed_url}, db
+                        )
+                    )
+            attempts.append(lambda: _scrape_newspaper_source(source, db))
+
+            for attempt in attempts:
                 try:
-                    s, sk = _scrape_newspaper_source(source, db)
+                    s, sk = attempt()
+                    # An empty or entirely filtered result is not considered
+                    # success; the next extraction strategy may have article
+                    # body text that the feed omitted.
+                    if s == 0 and attempt is not attempts[-1]:
+                        db.rollback()
+                        continue
                     scraped += s
                     skipped += sk
                     db.commit()
-                except Exception as fallback_exc:  # noqa: BLE001
+                    break
+                except Exception as exc:  # noqa: BLE001
                     db.rollback()
-                    errors.append(
-                        f"{source['name']}: {exc}; "
-                        f"newspaper3k fallback failed: {fallback_exc}"
-                    )
+                    source_errors.append(str(exc))
+            else:
+                errors.append(f"{source['name']}: {'; '.join(source_errors)}")
 
     return scraped, skipped, errors
 
@@ -420,7 +550,7 @@ def _check_feeds(debug: bool = False):
     db = SessionLocal()
 
     try:
-        sources = _get_db_sources(db) + HTML_SOURCES
+        sources = _get_db_sources(db)
         with httpx.Client(timeout=15.0, follow_redirects=True, headers=REQUEST_HEADERS) as client:
             for source in sources:
                 name = source["name"]
@@ -428,7 +558,12 @@ def _check_feeds(debug: bool = False):
                     if source.get("is_html"):
                         html_bytes = _fetch_via_browser(source["listing_url"])
                         soup = BeautifulSoup(html_bytes, "html.parser")
-                        sel = source["selectors"]
+                        sel = source.get("selectors")
+                        if not sel:
+                            blocks = soup.select("a[href]")
+                            status = "OK" if blocks else "0 LINKS"
+                            print(f"{name:20s} (browser)  {len(blocks):3d} links  {status}")
+                            continue
                         blocks = soup.select(sel["article"])
                         status = "OK" if blocks else "0 MATCHES -- CHECK SELECTORS"
                         print(f"{name:20s} (browser)  {len(blocks):3d} entries  {status}")
