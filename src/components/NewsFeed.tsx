@@ -173,7 +173,7 @@ export default function NewsFeed() {
                         {article.province}
                       </span>
                     )}
-                    {article.sentiment_status === "done" ? (
+                    {article.sentiment_status === "completed" ? (
                       <SentimentBadge label={article.sentiment_label} />
                     ) : (
                       <SentimentStatusBadge status={article.sentiment_status} />
