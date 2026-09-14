@@ -14,26 +14,82 @@ router = APIRouter(prefix="/api/news", tags=["news"])
 
 @router.post("/scrape")
 def trigger_scrape(db: Session = Depends(get_db)):
-    """The button's endpoint. Uses a Postgres advisory lock so a
-    double-click (or two people clicking at once) can't launch two
-    overlapping scrapes against the same news sites."""
+    """Trigger a news scrape with a global PostgreSQL lock."""
+
+    # Dedicated connection keeps the advisory lock alive
     lock_conn = engine.connect()
-    got_lock = lock_conn.execute(text("SELECT pg_try_advisory_lock(42)")).scalar()
+
+    got_lock = lock_conn.execute(
+        text("SELECT pg_try_advisory_lock(42)")
+    ).scalar()
 
     if not got_lock:
         lock_conn.close()
-        raise HTTPException(409, "A scrape is already in progress.")
+        raise HTTPException(
+            status_code=409,
+            detail="A scrape is already in progress."
+        )
 
     try:
+        # Set global scraping status
+        db.execute(
+            text("""
+                UPDATE scrape_status
+                SET is_scraping = TRUE,
+                    updated_at = NOW()
+                WHERE id = 1
+            """)
+        )
+        db.commit()
+
+        # Run scraper
         scraped, skipped, errors = scrape_all_sources(db)
+
         db.execute(text("NOTIFY new_articles"))
         db.commit()
+
+        return {
+            "scraped": scraped,
+            "skipped": skipped,
+            "errors": errors,
+        }
+
+    except Exception:
+        db.rollback()
+        raise
+
     finally:
-        lock_conn.execute(text("SELECT pg_advisory_unlock(42)"))
-        lock_conn.close()
+        # Always reset global status
+        try:
+            db.execute(
+                text("""
+                    UPDATE scrape_status
+                    SET is_scraping = FALSE,
+                        updated_at = NOW()
+                    WHERE id = 1
+                """)
+            )
+            db.commit()
+        finally:
+            # Release PostgreSQL advisory lock
+            lock_conn.execute(
+                text("SELECT pg_advisory_unlock(42)")
+            )
+            lock_conn.close()
 
-    return {"scraped": scraped, "skipped": skipped, "errors": errors}
+@router.get("/scrape-status")
+def get_scrape_status(db: Session = Depends(get_db)):
+    result = db.execute(
+        text("""
+            SELECT is_scraping
+            FROM scrape_status
+            WHERE id = 1
+        """)
+    ).mappings().first()
 
+    return {
+        "is_scraping": result["is_scraping"] if result else False
+    }
 
 @router.get("/articles", response_model=list[NewsArticleOut])
 def list_articles(
