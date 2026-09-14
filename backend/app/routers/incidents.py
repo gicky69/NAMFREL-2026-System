@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Incident, IncidentCategory, Profile
-from app.schemas import IncidentCreate, IncidentOut, IncidentStatusUpdate, IncidentCategoryOut
+from app.schemas import IncidentCreate, IncidentUpdate, IncidentOut, IncidentStatusUpdate, IncidentCategoryOut
 from app.routers.auth import require_roles, get_current_profile
 from app.services.sentiment import analyze_sentiment
 
@@ -84,6 +84,34 @@ def update_incident_status(
         )
 
     incident.status = payload.status
+
+    db.commit()
+    db.refresh(incident)
+
+    return incident
+
+@router.patch("/{incident_id}")
+def update_incident(
+    incident_id: str,
+    incident_data: IncidentUpdate,
+    db: Session = Depends(get_db),
+):
+    incident = (
+        db.query(Incident)
+        .filter(Incident.id == incident_id)
+        .first()
+    )
+
+    if not incident:
+        raise HTTPException(
+            status_code=404,
+            detail="Incident not found"
+        )
+
+    update_data = incident_data.model_dump(exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(incident, field, value)
 
     db.commit()
     db.refresh(incident)
