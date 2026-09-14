@@ -9,4 +9,5 @@ psycopg2-binary
 firebase-admin
 feedparser  
 playwright==1.48.0
+apscheduler
  

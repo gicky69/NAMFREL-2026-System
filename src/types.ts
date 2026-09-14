@@ -109,7 +109,7 @@ export const BARMM_PROVINCES = [
   "Maguindanao del Sur",
   "Sulu",
   "Tawi-Tawi",
-  "Independent Component City",
+  "Cotabato City (ICC)",
   "Others"
 ] as const;
 

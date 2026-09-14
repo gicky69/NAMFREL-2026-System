@@ -64,7 +64,7 @@ export default function NewsFeed() {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchScrapeStatus();
-    }, 3000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, [fetchScrapeStatus]);
