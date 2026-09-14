@@ -4,7 +4,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
-from app.db import get_db
+from app.db import get_db, engine
 from app.models import NewsArticle
 from app.schemas import NewsArticleOut
 from app.services.scraper import scrape_all_sources
@@ -17,11 +17,11 @@ def trigger_scrape(db: Session = Depends(get_db)):
     """The button's endpoint. Uses a Postgres advisory lock so a
     double-click (or two people clicking at once) can't launch two
     overlapping scrapes against the same news sites."""
-    got_lock = db.execute(
-        text("SELECT pg_try_advisory_lock(42)")
-    ).scalar()
+    lock_conn = engine.connect()
+    got_lock = lock_conn.execute(text("SELECT pg_try_advisory_lock(42)")).scalar()
 
     if not got_lock:
+        lock_conn.close()
         raise HTTPException(409, "A scrape is already in progress.")
 
     try:
@@ -29,7 +29,8 @@ def trigger_scrape(db: Session = Depends(get_db)):
         db.execute(text("NOTIFY new_articles"))
         db.commit()
     finally:
-        db.execute(text("SELECT pg_advisory_unlock(42)"))
+        lock_conn.execute(text("SELECT pg_advisory_unlock(42)"))
+        lock_conn.close()
 
     return {"scraped": scraped, "skipped": skipped, "errors": errors}
 
