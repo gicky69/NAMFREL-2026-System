@@ -47,10 +47,20 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
 
   // Determine allowed navigation items based on role
   const isRestrictedRole = profile.role === "public" || profile.role === "personnel";
+  const isDisplayRole = profile.role === "display";
   
-  const navItems = isRestrictedRole
-    ? ALL_NAV_ITEMS.filter((item) => item.id === "report")
-    : ALL_NAV_ITEMS.filter((item) => item.id !== "admin" || profile.role === "admin" || profile.role === "super_admin");
+  const navItems = isDisplayRole
+    ? ALL_NAV_ITEMS.filter(
+        (item) => item.id === "dashboard" || item.id === "news"
+      )
+    : isRestrictedRole
+      ? ALL_NAV_ITEMS.filter((item) => item.id === "report")
+      : ALL_NAV_ITEMS.filter(
+          (item) =>
+            item.id !== "admin" ||
+            profile.role === "admin" ||
+            profile.role === "super_admin"
+        );
 
   // Default page should be "report" for restricted users, otherwise "dashboard"
   const [page, setPage] = useState<Page>(isRestrictedRole ? "report" : "dashboard");

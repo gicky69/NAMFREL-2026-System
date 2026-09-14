@@ -231,22 +231,6 @@ export default function IncidentsList() {
     addDivider();
 
     // =========================
-    // SENTIMENT ANALYSIS
-    // =========================
-
-    addSectionTitle("Sentiment Analysis");
-
-    addField(
-      "Sentiment",
-      incident.sentiment_label
-    );
-
-    addField(
-      "Sentiment Score",
-      incident.sentiment_score
-    );
-
-    // =========================
     // FOOTER
     // =========================
 
