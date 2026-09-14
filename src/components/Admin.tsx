@@ -459,6 +459,7 @@ export default function Admin() {
                       <p className="font-medium text-gray-900">
                         {user.full_name || user.email} {isSuperAdmin && <span className="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-semibold">Super Admin</span>}
                       </p>
+                      <p className="text-xs text-gray-400 mb-2"> <span className="font-normal">{user.email}</span></p>
                       <p className="text-sm text-gray-500">Current Role: <span className="font-semibold">{user.role}</span></p>
                     </div>
                     <div className="flex space-x-2">
