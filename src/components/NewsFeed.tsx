@@ -4,7 +4,6 @@ import { supabase } from "@/lib/supabase";
 import type { NewsArticle, SentimentLabel } from "@/types";
 import { LoadingSpinner, ErrorState, EmptyState } from "@/components/States";
 import { SentimentBadge } from "@/components/SentimentBadge";
-import { SentimentStatusBadge } from "@/components/SentimentStatusBadge";
 import { formatDate } from "@/lib/sentiment";
 
 export default function NewsFeed() {
@@ -119,9 +118,12 @@ export default function NewsFeed() {
     }
   };
 
-  const sources = [...new Set(articles.map((a) => a.source).filter(Boolean))] as string[];
+  // "Verified" = article_status === "verified" (as opposed to pending/rejected)
+  const verifiedArticles = articles.filter((a) => a.status === "verified");
 
-  const filteredArticles = articles.filter((article) => {
+  const sources = [...new Set(verifiedArticles.map((a) => a.source).filter(Boolean))] as string[];
+
+  const filteredArticles = verifiedArticles.filter((article) => {
     if (sentimentFilter !== "all" && article.sentiment_label !== sentimentFilter) return false;
     if (sourceFilter !== "all" && article.source !== sourceFilter) return false;
     if (searchQuery) {
@@ -215,14 +217,14 @@ export default function NewsFeed() {
 
       {/* Results count */}
       <p className="text-sm text-slate-500">
-        Showing {filteredArticles.length} of {articles.length} articles
+        Showing {filteredArticles.length} of {verifiedArticles.length} verified articles
       </p>
 
       {/* Articles list */}
       {filteredArticles.length === 0 ? (
         <EmptyState
           title="No articles found"
-          message={articles.length === 0 ? "Click 'Scrape Latest News' to fetch BARMM election news." : "Try adjusting your filters or search query."}
+          message={verifiedArticles.length === 0 ? "Click 'Scrape Latest News' to fetch BARMM election news." : "Try adjusting your filters or search query."}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4">
@@ -241,11 +243,7 @@ export default function NewsFeed() {
                         {article.province}
                       </span>
                     )}
-                    {article.sentiment_status === "completed" ? (
-                      <SentimentBadge label={article.sentiment_label} />
-                    ) : (
-                      <SentimentStatusBadge status={article.sentiment_status} />
-                    )}
+                    <SentimentBadge label={article.sentiment_label} />
                   </div>
                   <h3 className="font-bold text-slate-900 mb-2 leading-snug">{article.title}</h3>
                   {article.summary && (

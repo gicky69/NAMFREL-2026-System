@@ -1,4 +1,4 @@
-  import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
   import { TrendingUp, TrendingDown, Minus, Newspaper, AlertTriangle, Activity, MapPin, BarChart3, RefreshCw } from "lucide-react";
   import type { NewsArticle, Incident, SentimentLabel } from "@/types";
   import { INCIDENT_TYPES, SEVERITY_LEVELS } from "@/types";
@@ -216,7 +216,10 @@
       if (a.source) sourceCounts[a.source] = (sourceCounts[a.source] || 0) + 1;
     });
 
-    const recentArticles = articles.slice(0, 5);
+    // "Verified" articles = article_status === "verified" (as opposed to pending/rejected)
+    const verifiedArticles = articles.filter((a) => a.status === "verified");
+
+    const recentArticles = verifiedArticles.slice(0, 5);
     const recentIncidents = incidents.slice(0, 5);
 
     const SentimentIcon = avgSentiment > 0.15 ? TrendingUp : avgSentiment < -0.15 ? TrendingDown : Minus;
@@ -386,7 +389,7 @@
                 <h3 className="font-bold text-slate-900">Recent News Articles</h3>
               </div>
               {recentArticles.length === 0 ? (
-                <EmptyState title="No articles yet" message="Click 'Scrape Latest News' to fetch BARMM election news." />
+                <EmptyState title="No verified articles yet" message="Click 'Scrape Latest News' to fetch BARMM election news." />
               ) : (
                 <div className="space-y-3">
                   {recentArticles.map((article) => (

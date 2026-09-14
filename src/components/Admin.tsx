@@ -299,51 +299,31 @@ export default function Admin() {
   };
 
   const handleVerifyArticles = async (id: string, isVerified: boolean) => {
-    const token = await auth.currentUser?.getIdToken();
-    
+    const newStatus = isVerified ? "verified" : "rejected";
     try {
-      if (isVerified) {
-        const res = await fetch(`${API_URL}/api/articles/${id}/status`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ status: "verified" }),
-        });
-        if (!res.ok) throw new Error(`Failed to update article (${res.status})`);
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`${API_URL}/api/articles/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error(`Failed to update article (${res.status})`);
 
-        const updated: NewsArticle = await res.json();
-        setPendingArticles((prev) => prev.filter((a) => a.id !== id));
-        setArticles((prev) => prev.map((a) => (a.id === id ? updated : a)));
+      const updated: NewsArticle = await res.json();
+      setPendingArticles((prev) => prev.filter((a) => a.id !== id));
+      setArticles((prev) => prev.map((a) => (a.id === id ? updated : a)));
 
-        setTitle("Article Verified");
-        setStatusMessage("Article was successfully verified.");
-      } else {
-        const res = await fetch(`${API_URL}/api/articles/${id}`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (!res.ok) throw new Error(`Failed to delete article (${res.status})`);
-
-        // Remove from both lists entirely, since it no longer exists in the DB
-        setPendingArticles((prev) => prev.filter((a) => a.id !== id));
-        setArticles((prev) => prev.filter((a) => a.id !== id));
-
-        setTitle("Article Rejected");
-        setStatusMessage("Article was successfully rejected and removed.");
-      }
-
+      setTitle(isVerified ? "Article Verified" : "Article Rejected");
+      setStatusMessage(`Article was successfully ${isVerified ? "verified" : "rejected"}.`);
       setShowStatusPage(true);
       setTimeout(() => setShowStatusPage(false), 3000);
     } catch (error) {
-      console.error('Error updating article:', error);
+      console.error("Error updating article:", error);
       setTitle(isVerified ? "Error Verifying Article" : "Error Rejecting Article");
-      setStatusMessage(
-        `Failed (${error instanceof Error ? error.message : "unknown error"})`
-      );
+      setStatusMessage(`Failed (${error instanceof Error ? error.message : "unknown error"})`);
       setShowStatusPage(true);
       setTimeout(() => setShowStatusPage(false), 3000);
     }
