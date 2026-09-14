@@ -106,6 +106,12 @@ HTML_SOURCES = [
     },
 ]
 
+
+def _clean_html(text: str) -> str:
+    if not text:
+        return ""
+    return BeautifulSoup(text, "html.parser").get_text(separator=" ", strip=True)
+
 def _get_db_sources(db: Session) -> list[dict]:
     rows = db.query(NewsSource).filter(NewsSource.is_active.is_(True)).all()
     return [{"name": row.name, "feed_url": row.url} for row in rows]
@@ -196,7 +202,7 @@ def _save_if_new(db: Session, title: str, url: str, summary: str, source_name: s
         province=_detect_province(title, summary),
         is_election_related=_is_election_related(title, summary),
         status="pending",           # admin verification workflow (pending/verified/rejected)
-        sentiment_status="done",    # sentiment analysis workflow -- now complete
+        sentiment_status="pending",    # sentiment analysis workflow -- now complete
         sentiment_score=score,
         sentiment_label=label,
     )
@@ -220,6 +226,7 @@ def _scrape_rss_source(client: httpx.Client, source: dict, db: Session) -> tuple
         title = getattr(entry, "title", None)
         url = getattr(entry, "link", None)
         summary = getattr(entry, "summary", "") or getattr(entry, "description", "")
+        summary = _clean_html(summary)
         published_date = _parse_pub_date(entry)
 
         if _save_if_new(db, title, url, summary, source["name"], published_date):
