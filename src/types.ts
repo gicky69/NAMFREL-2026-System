@@ -109,6 +109,8 @@ export const BARMM_PROVINCES = [
   "Maguindanao del Sur",
   "Sulu",
   "Tawi-Tawi",
+  "Independent Component City",
+  "Others"
 ] as const;
 
 export const INCIDENT_TYPES: { value: IncidentType; label: string; color: string }[] = [
