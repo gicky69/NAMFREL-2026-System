@@ -112,11 +112,13 @@
 
         if (response.status === 409) {
           setScrapeMessage("A scrape is already in progress.");
+          setScraping(false);
           await fetchScrapeStatus();
           return;
         }
 
         if (!response.ok) {
+          setScraping(false);
           throw new Error(`Scrape failed (${response.status})`);
         }
 
