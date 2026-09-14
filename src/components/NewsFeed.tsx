@@ -80,12 +80,14 @@ export default function NewsFeed() {
       });
 
       if (response.status === 409) {
+        setScraping(false);
         setScrapeMessage("Error: A scrape is already in progress.");
         await fetchScrapeStatus();
         return;
       }
 
       if (!response.ok) {
+        setScraping(false);
         throw new Error(`Scrape Failed (${response.status})`);
       }
 
