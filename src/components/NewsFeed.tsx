@@ -57,6 +57,10 @@ export default function NewsFeed() {
         }
         `
       )
+
+      // 🔄 Refresh the News Feed UI
+      await fetchArticles();
+
     } catch (err) {
       setScrapeMessage(`Erorr; ${err instanceof Error ? err.message : "Unknown Error"}`);
     } finally {
