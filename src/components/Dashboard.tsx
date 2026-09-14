@@ -20,7 +20,10 @@
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
     const [scraping, setScraping] = useState(false);
+    const [globalScraping, setGlobalScraping] = useState(false);  
+
     const [scrapeMessage, setScrapeMessage] = useState<string | null>(null);
     const [scrapeErrors, setScrapeErrors] = useState<string[]>([]);
     const [showScrapeErrors, setShowScrapeErrors] = useState(false);
@@ -69,27 +72,82 @@
       fetchData();
     }, [fetchData]);
 
+    const fetchScrapeStatus = useCallback(async () => {
+      try {
+        const response = await fetch(
+          `${API_URL}/api/news/scrape-status`
+        );
+
+        if (!response.ok) return;
+
+        const result = await response.json();
+        setGlobalScraping(result.is_scraping);
+      } catch {
+        // Keep the current status if the status check fails
+      }
+    }, []);
+
+    useEffect(() => {
+      fetchScrapeStatus();
+    }, [fetchScrapeStatus]);
+
+    useEffect(() => {
+      const interval = setInterval(() => {
+        fetchScrapeStatus();
+      }, 3000);
+
+      return () => clearInterval(interval);
+    }, [fetchScrapeStatus]);
+
     const handleScrape = async () => {
       setScraping(true);
+      setGlobalScraping(true);
       setScrapeMessage(null);
       setScrapeErrors([]);
+
       try {
-        const response = await fetch(`${API_URL}/api/news/scrape`, { method: "POST" });
-        if (!response.ok) throw new Error(`Scrape failed (${response.status})`);
+        const response = await fetch(`${API_URL}/api/news/scrape`, {
+          method: "POST",
+        });
+
+        if (response.status === 409) {
+          setScrapeMessage("A scrape is already in progress.");
+          await fetchScrapeStatus();
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(`Scrape failed (${response.status})`);
+        }
+
         const result = await response.json();
 
         setScrapeMessage(
-          `Scraped ${result.scraped || 0} new article${result.scraped === 1 ? "" : "s"}` +
-          (result.skipped ? ` (${result.skipped} already seen or not BARMM-related)` : "")
+          `Scraped ${result.scraped || 0} new article${
+            result.scraped === 1 ? "" : "s"
+          }` +
+            (result.skipped
+              ? ` (${result.skipped} already seen or not BARMM-related)`
+              : "")
         );
+
         setScrapeErrors(result.errors || []);
+
+        // Refresh Dashboard UI with newly scraped articles
         await fetchData();
+
       } catch (err) {
-        setScrapeMessage(err instanceof Error ? err.message : "Scrape failed");
+        setScrapeMessage(
+          err instanceof Error ? err.message : "Scrape failed"
+        );
       } finally {
         setScraping(false);
+
+        // Get the actual global status from backend
+        await fetchScrapeStatus();
       }
     };
+
 
     if (loading) return <LoadingSpinner label="Loading dashboard data..." />;
     if (error) return <ErrorState message={error} />;
@@ -158,18 +216,28 @@
           </div>
           <button
             onClick={handleScrape}
-            disabled={scraping}
-            className="btn-primary font-bold flex items-center gap-2 text-sm self-start"
+            disabled={scraping || globalScraping}
+            className="btn-primary font-bold flex items-center gap-2 text-sm self-start disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <RefreshCw className={`w-4 h-4 ${scraping ? "animate-spin" : ""}`} />
-            {scraping ? "Scraping News..." : "Scrape Latest News"}
+            <RefreshCw
+              className={`w-4 h-4 ${
+                scraping || globalScraping ? "animate-spin" : ""
+              }`}
+            />
+
+            {scraping
+              ? "Scraping News..."
+              : globalScraping
+              ? "Scraping in progress..."
+              : "Scrape Latest News"}
           </button>
+
         </div>
 
         {scrapeMessage && (
-          <div className="card p-4 text-sm animate-fade-in border-teal-200 bg-teal-50">
+          <div className="card p-4 text-sm animate-fade-in border-red-200 bg-red-50">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-teal-700">{scrapeMessage}</p>
+              <p className="text-red-700">{scrapeMessage}</p>
               {scrapeErrors.length > 0 && (
                 <button
                   onClick={() => setShowScrapeErrors((v) => !v)}
