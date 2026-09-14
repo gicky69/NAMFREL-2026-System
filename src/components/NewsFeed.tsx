@@ -31,6 +31,7 @@ export default function NewsFeed() {
         .order("published_date", { ascending: false });
       if (err) throw err;
       setArticles(data || []);
+      console.log("Fetched articles:", data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load articles");
     } finally {

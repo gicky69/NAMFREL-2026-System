@@ -4,7 +4,11 @@ import { auth } from "@/lib/firebase";
 import { supabase } from '@/lib/supabase';
 import { UserProfile, Incident, IncidentCategory, NewsSource, NewsArticle} from '@/types';
 import { getIdToken } from 'firebase/auth';
-import { Users, AlertTriangle, Tags, Globe, Check, X, Plus, MapPin, User, Clock, ExternalLink, FileText } from 'lucide-react';
+import { Users, AlertTriangle, Tags, Globe, Check, X, Plus, MapPin, User, Clock, ExternalLink, FileText, Pencil } from 'lucide-react';
+import { formatDate, formatDateTime } from "@/lib/sentiment";
+
+import EditIncidentModal, {  IncidentReport  } from "./EditIncidentModal";
+
 type TabType = 'users' | 'reports' | 'categories' | 'sources' | 'articles';
 
 export default function Admin() {
@@ -25,6 +29,8 @@ export default function Admin() {
 
   const [newCategory, setNewCategory] = useState('');
   const [newSource, setNewSource] = useState('');
+
+  const [editingIncident, setEditingIncident] = useState<IncidentReport | null>(null);
 
   // Success message states
   const [title, setTitle] = useState("");
@@ -157,6 +163,97 @@ export default function Admin() {
       setTimeout(() => {
         setShowStatusPage(false);
       }, 3000);
+    }
+  };
+
+  const handleEditReport = (incident: IncidentReport) => {
+    // Open the edit modal with the selected incident
+    setEditingIncident(incident);
+  };
+
+  const handleSaveReport = async (updatedIncident: IncidentReport) => {
+    try {
+      const user = auth.currentUser;
+
+      if (!user) {
+        throw new Error("Not authenticated");
+      }
+
+      const token = await user.getIdToken();
+
+      const response = await fetch(
+        `${API_URL}/api/incidents/${updatedIncident.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            title: updatedIncident.title,
+            description: updatedIncident.description,
+            incident_type: updatedIncident.incident_type,
+            category: updatedIncident.category,
+            severity: updatedIncident.severity,
+            province: updatedIncident.province,
+            municipality: updatedIncident.municipality,
+            incident_date: updatedIncident.incident_date,
+            incident_time: updatedIncident.incident_time,
+            organization: updatedIncident.organization,
+            contact_info: updatedIncident.contact_info,
+            reported_by: updatedIncident.reported_by,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to update report (${response.status}): ${errorText}`
+        );
+      }
+
+      const updated: Incident = await response.json();
+
+      // Update the incident in the local lists
+      setIncidents((prev) =>
+        prev.map((incident) =>
+          incident.id === updated.id ? updated : incident
+        )
+      );
+
+      setReports((prev) =>
+        prev.map((report) =>
+          report.id === updated.id ? updated : report
+        )
+      );
+
+      setEditingIncident(null);
+
+      setTitle("Report Updated");
+      setStatusMessage("Incident report was successfully updated.");
+      setShowStatusPage(true);
+
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
+
+    } catch (error) {
+      console.error("Error updating report:", error);
+
+      setTitle("Error Updating Report");
+      setStatusMessage(
+        `Failed to update report (${
+          error instanceof Error ? error.message : "unknown error"
+        })`
+      );
+      setShowStatusPage(true);
+
+      setTimeout(() => {
+        setShowStatusPage(false);
+      }, 3000);
+
+      throw error;
     }
   };
 
@@ -520,7 +617,8 @@ export default function Admin() {
                           <h3 className="font-semibold text-lg text-gray-900 leading-tight">{report.title}</h3>
                           <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
                             <Clock size={14} /> 
-                            {report.incident_date} {report.incident_time ? `at ${report.incident_time}` : ''}
+                              {formatDate(report.incident_date)}
+                              {report.incident_time ? ` at ${report.incident_time}` : ""}
                           </p>
                         </div>
                         
@@ -550,16 +648,23 @@ export default function Admin() {
 
                     {/* Action Buttons */}
                     <div className="flex flex-row md:flex-col space-x-2 md:space-x-0 md:space-y-2 shrink-0 md:w-32">
+                      <button 
+                        className="edit-button text-sm flex-1 flex items-center justify-center bg-gray-100 hover:bg-gray-200 space-x-1 px-3 py-2 text-primary rounded-md transition-colors shadow-sm"
+                        onClick={() => handleEditReport(report)}
+                      >
+                        
+                        <Pencil size={16} /> Edit
+                      </button>
                       <button
                         onClick={() => handleVerifyReport(report.id, true)}
-                        className="flex-1 flex items-center justify-center space-x-1 px-4 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors shadow-sm"
+                        className="text-sm flex-1 flex items-center justify-center space-x-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors shadow-sm"
                       >
                         <Check size={16} />
                         <span className="font-medium">Verify</span>
                       </button>
                       <button
                         onClick={() => handleVerifyReport(report.id, false)}
-                        className="flex-1 flex items-center justify-center space-x-1 px-4 py-2.5 bg-white border border-red-200 text-red-600 rounded-md hover:bg-red-50 transition-colors shadow-sm"
+                        className="text-sm flex-1 flex items-center justify-center space-x-1 px-3 py-2 bg-white border border-red-200 text-red-600 rounded-md hover:bg-red-50 transition-colors shadow-sm"
                       >
                         <X size={16} />
                         <span className="font-medium">Reject</span>
@@ -669,7 +774,7 @@ export default function Admin() {
                       <h3 className="font-semibold text-lg text-gray-900 leading-tight">{article.title}</h3>
                       <p className="text-sm text-gray-500 flex items-center gap-2">
                         <Clock size={14} />
-                        {article.published_date ? new Date(article.published_date).toLocaleString() : "No date"}
+                        {formatDateTime(article.published_date)}
                         {article.source && <span className="ml-2">· {article.source}</span>}
                       </p>
                       {article.summary && (
@@ -797,6 +902,15 @@ export default function Admin() {
         document.body
       )}
 
-      </>
+      {editingIncident && (
+        <EditIncidentModal
+          incident={editingIncident}
+          isOpen={editingIncident !== null}
+          onClose={() => setEditingIncident(null)}
+          onSave={handleSaveReport}
+        />
+      )}
+
+    </>
   );
 }

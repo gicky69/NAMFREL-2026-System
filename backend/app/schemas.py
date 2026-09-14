@@ -24,6 +24,24 @@ class IncidentCreate(BaseModel):
     reporter_longitude: Optional[float] = None
     reporter_location_accuracy: Optional[float] = None
 
+class IncidentUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    incident_type: Optional[str] = None
+    severity: Optional[str] = None
+    province: Optional[str] = None
+    municipality: Optional[str] = None
+    incident_date: Optional[datetime.date] = None
+    incident_time: Optional[datetime.time] = None
+    reported_by: Optional[str] = None
+    organization: Optional[str] = None
+    contact_info: Optional[str] = None
+
+    # report approx location
+    reporter_latitude: Optional[float] = None
+    reporter_longitude: Optional[float] = None
+    reporter_location_accuracy: Optional[float] = None
+
 
 class IncidentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
