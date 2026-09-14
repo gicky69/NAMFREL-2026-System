@@ -4,6 +4,7 @@ export type SentimentStatus = "pending" | "processing" | "done" | "failed";
 export type Severity = "low" | "medium" | "high" | "critical";
 
 export type IncidentStatus = "reported" | "verified" | "resolved";
+export type ArticleStatus = "pending" | "verified" | "rejected";
 
 export const ORGANIZATIONS = [
   "CCAA",
@@ -62,6 +63,7 @@ export interface NewsArticle {
   sentiment_score: number;
   sentiment_label: SentimentLabel | null;
   sentiment_status: SentimentStatus;
+  status: ArticleStatus;
   keywords: string[];
   province: string | null;
   scraped_at: string;
