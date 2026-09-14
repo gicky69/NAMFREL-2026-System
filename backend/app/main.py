@@ -8,11 +8,17 @@ from app.config import settings
 from app.routers import auth, articles, incidents, admin, users, news, sources, sentiment
 from app.services.sentiment import load_model
 
+# scheduler for scraping news articles every 2 hours
+from app.services.scheduler import start_scheduler
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Pre-load TagaSenti sentiment model into memory on startup
     load_model()
+
+    # for web scraping news articles every 2 hours, start the scheduler
+    start_scheduler()
     yield
 
 
