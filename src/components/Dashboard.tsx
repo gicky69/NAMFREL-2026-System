@@ -288,6 +288,7 @@ import { useState, useEffect, useCallback } from "react";
                 <PieChart
                   data={categoryCounts.map((c) => ({ label: c.label, value: c.count, color: c.color }))}
                   innerRadiusRatio={0.55}
+                  showCount={false}
                 />
               )}
             </div>

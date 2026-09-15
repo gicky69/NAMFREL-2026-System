@@ -17,6 +17,7 @@ import type { NewsArticle } from "@/types";
 export type ArticleCategory =
   | "violence_security"
   | "fraud_vote_buying"
+  | "political_dynasties"
   | "threats_unrest"
   | "peaceful_positive"
   | "election_process";
@@ -30,9 +31,10 @@ export interface CategoryMeta {
 export const ARTICLE_CATEGORIES: CategoryMeta[] = [
   { key: "violence_security", label: "Violence & Security", color: "#dc2626" }, // red-600
   { key: "fraud_vote_buying", label: "Fraud & Vote-Buying", color: "#ea580c" }, // orange-600
+  { key: "political_dynasties", label: "Political Dynasties", color: "#9333ea" }, // purple-600
   { key: "threats_unrest", label: "Threats & Unrest", color: "#d97706" }, // amber-600
   { key: "peaceful_positive", label: "Peaceful / Positive", color: "#16a34a" }, // green-600
-  { key: "election_process", label: "Election Process & Other", color: "#64748b" }, // slate-500
+  { key: "election_process", label: "Election Process", color: "#0284c7" }, // sky-600
 ];
 
 const CATEGORY_LABEL_BY_KEY: Record<ArticleCategory, string> = Object.fromEntries(
@@ -49,16 +51,43 @@ const VIOLENCE_WORDS = [
   "ambush", "clash", "clashes", "massacre", "behead", "hostage", "kidnap",
   "abduction", "terror", "arson", "looted", "looting", "burned",
 ];
+// Multi-word phrases from the ELECTION_RISK_TERMS["violence"] lexicon.
+const VIOLENCE_PHRASES = [
+  "election violence", "electoral violence", "poll violence",
+  "political violence", "violence threaten", "violence threatens",
+  "violent threat",
+];
 
 const FRAUD_WORDS = [
   "fraud", "cheating", "rigging", "corrupt", "corruption",
 ];
-const FRAUD_PHRASES = ["vote buying", "vote-buying"];
+// Phrases from ELECTION_RISK_TERMS["vote_buying"] and ["fraud"] — kept in the
+// same category since vote-buying is a form of election fraud.
+const FRAUD_PHRASES = [
+  "vote buying", "vote-buying", "buying votes", "buy votes",
+  "cash for votes",
+  "election fraud", "electoral fraud", "multiple voting",
+  "multiple ballots", "poll fraud", "pre-shaded", "pre-shaded ballots",
+  "compromised ballots", "election irregularit", "electoral irregularit",
+];
+
+// Phrases from ELECTION_RISK_TERMS["political_dynasties"]. Political-dynasty
+// coverage isn't inherently negative, so it gets its own category rather
+// than folding into "threats" or "fraud".
+const DYNASTY_PHRASES = [
+  "political dynasty", "political dynasties", "political families",
+  "political family", "political clans", "dynasties", "family ties", "clan",
+];
 
 const THREAT_WORDS = [
   "intimidation", "threat", "threatened", "fear", "fearful", "dangerous",
   "boycott", "dispute", "tension", "tensions", "conflict", "protest",
   "rally", "unrest", "evacuate", "evacuated", "displace", "displaced",
+];
+// Phrases from ELECTION_RISK_TERMS["intimidation"].
+const THREAT_PHRASES = [
+  "voter intimidation", "voter coercion", "threatened voters",
+  "threatening voters",
 ];
 
 const POSITIVE_WORDS = [
@@ -77,10 +106,16 @@ interface CategoryDef {
 
 // Order matters as a tiebreaker: if a story mentions both violence and
 // process words, it should read as a security story, not a process story.
+//
+// Note: some phrases above (e.g. "clan", "dynasties") are single words
+// matched via plain substring on the full text rather than tokenized word
+// match, so they can over-match inside longer words (e.g. "clan" inside
+// "clandestine"). Acceptable for a dashboard-level mix; revisit if it gets noisy.
 const CATEGORY_DEFS: CategoryDef[] = [
-  { key: "violence_security", words: VIOLENCE_WORDS },
+  { key: "violence_security", words: VIOLENCE_WORDS, phrases: VIOLENCE_PHRASES },
   { key: "fraud_vote_buying", words: FRAUD_WORDS, phrases: FRAUD_PHRASES },
-  { key: "threats_unrest", words: THREAT_WORDS },
+  { key: "political_dynasties", words: [], phrases: DYNASTY_PHRASES },
+  { key: "threats_unrest", words: THREAT_WORDS, phrases: THREAT_PHRASES },
   { key: "peaceful_positive", words: POSITIVE_WORDS },
 ];
 
@@ -93,8 +128,8 @@ function tokenize(text: string): string[] {
 
 /**
  * Classify a single article into a content category based on title +
- * summary text. Falls back to "election_process" when no category-specific
- * words are found (i.e. routine election-process coverage).
+ * summary text. Falls back to "election_process" when none of the
+ * incident/sentiment word banks match.
  */
 export function categorizeArticle(article: Pick<NewsArticle, "title" | "summary">): ArticleCategory {
   const text = `${article.title ?? ""} ${article.summary ?? ""}`.toLowerCase();
@@ -140,6 +175,7 @@ export function computeCategoryCounts(
   const counts: Record<ArticleCategory, number> = {
     violence_security: 0,
     fraud_vote_buying: 0,
+    political_dynasties: 0,
     threats_unrest: 0,
     peaceful_positive: 0,
     election_process: 0,

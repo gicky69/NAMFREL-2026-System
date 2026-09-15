@@ -11,6 +11,8 @@ interface PieChartProps {
   innerRadiusRatio?: number;
   /** "bottom" stacks the legend under the chart (default); "side" places it next to the chart */
   legendPosition?: "bottom" | "side";
+  /** Whether the legend shows the raw count alongside the percentage. Default true. */
+  showCount?: boolean;
 }
 
 const RADIUS = 100; // fixed viewBox units; `size` scales via width/height only
@@ -28,14 +30,15 @@ function arcPath(cx: number, cy: number, r: number, startAngle: number, endAngle
 }
 
 /**
-* Simple, dependency-free SVG pie/donut chart with an adjacent legend.
-* Renders nothing but an empty state if every value is 0.
-*/
+ * Simple, dependency-free SVG pie/donut chart with an adjacent legend.
+ * Renders nothing but an empty state if every value is 0.
+ */
 export function PieChart({
   data,
-  size = 200,
+  size = 260,
   innerRadiusRatio = 0,
   legendPosition = "bottom",
+  showCount = true,
 }: PieChartProps) {
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
@@ -67,7 +70,7 @@ export function PieChart({
     <div
       className={
         isSide
-          ? "flex flex-row items-center justify-between gap-6 gap-left-6"
+          ? "flex flex-col sm:flex-row items-center gap-6"
           : "flex flex-col items-center gap-6"
       }
     >
@@ -75,7 +78,7 @@ export function PieChart({
         width={size}
         height={size}
         viewBox={`0 0 ${RADIUS * 2} ${RADIUS * 2}`}
-        className=" ml-7"
+        className="shrink-0"
       >
         {slices.map((slice) => (
           <path
@@ -94,7 +97,7 @@ export function PieChart({
       <div
         className={
           isSide
-            ? "w-auto min-w-[180px] space-y-2"
+            ? "flex-1 w-full space-y-2"
             : "w-full grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2"
         }
       >
@@ -106,7 +109,7 @@ export function PieChart({
               className={
                 isSide
                   ? "flex items-center gap-2 text-sm"
-                  : "flex items-center justify-between gap-5 text-sm"
+                  : "flex items-center justify-between gap-3 text-sm"
               }
             >
               <div className="flex items-center gap-2 min-w-0">
@@ -117,7 +120,7 @@ export function PieChart({
                 <span className="text-slate-700 truncate">{d.label}</span>
               </div>
               <span className="text-slate-500 shrink-0">
-                {d.value} ({pct.toFixed(1)}%)
+                {showCount ? `${d.value} (${pct.toFixed(1)}%)` : `${pct.toFixed(1)}%`}
               </span>
             </div>
           );
@@ -126,4 +129,3 @@ export function PieChart({
     </div>
   );
 }
- 
