@@ -74,7 +74,7 @@ export default function Admin() {
       }
 
       const token = await user.getIdToken();
-      const res = await fetch(`${API_URL}/api/incidents?limit=100`, {
+      const res = await fetch(`${API_URL}/api/incidents`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -109,13 +109,14 @@ export default function Admin() {
     if (res.ok) setSources(await res.json());
   }, []);
 
-  const fecthArticles = useCallback(async () => {
+  const fecthArticles = useCallback(async () => { // get all articles with status pending
     try {
-      const res = await fetch(`${API_URL}/api/articles?limit=100`);
+      const res = await fetch(`${API_URL}/api/articles?status=pending`);
       if (!res.ok) throw new Error(`Failed to fetch articles with status ${res.status}`);
       const data: NewsArticle[] = await res.json();
       setArticles(data || []);
       setPendingArticles((data || []).filter((a) => a.status === "pending"));
+      console.log("Fetched articles:", data);
     } catch (err) {
       console.error("Error fetching articles", err);
     }
