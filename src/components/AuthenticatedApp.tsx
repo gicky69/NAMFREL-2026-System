@@ -281,7 +281,15 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
       <footer className="bg-slate-800 text-slate-400 py-6 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm">
           <p>SAIR - Sentiment Analysis and Incident Report</p>
-          <p className="text-xs mt-1 text-slate-500">By Team AI - Asia Pacific College</p>
+          <p className="text-sm mt-1 text-slate-500 mb-1"> Asia Pacific College</p>
+          <p className="text-xs text-slate-600">
+            Carl Andrew Villanueva | 
+            Joaquin Paolo Pacete | 
+            Angel David Ornedo | 
+            Gerard Patrick Briones | 
+            Sergio Peruda, Jr. | 
+            Luigi Carlo De Jesus
+          </p>
         </div>
       </footer>
     </div>
