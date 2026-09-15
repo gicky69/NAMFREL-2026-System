@@ -215,6 +215,13 @@ import { useState, useEffect, useCallback } from "react";
       severityCounts[i.severity] = (severityCounts[i.severity] || 0) + 1;
     });
 
+    // Unverified (reported) incidents + their severity breakdown
+    const unverifiedIncidents = incidents.filter((i) => i.status === "reported");
+    const unverifiedSeverityCounts: Record<string, number> = {};
+    unverifiedIncidents.forEach((i) => {
+      unverifiedSeverityCounts[i.severity] = (unverifiedSeverityCounts[i.severity] || 0) + 1;
+    });
+
     // Average sentiment
     // Average sentiment
     const avgSentiment = articles.length > 0
@@ -548,15 +555,30 @@ import { useState, useEffect, useCallback } from "react";
 
                 <div className="mt-6 text-center">
                   <p className="text-4xl font-bold text-slate-900">
-                    {incidents.filter(
-                      (incident) => incident.status === "reported"
-                    ).length}
+                    {unverifiedIncidents.length}
                   </p>
 
                   <p className="text-sm text-slate-500 mt-1">
                     Reports awaiting verification
                   </p>
                 </div>
+
+                {unverifiedIncidents.length > 0 && (
+                  <div className="mt-6 pt-6 border-t border-slate-100">
+                    <p className="text-xs font-medium text-slate-500 mb-3 text-center">
+                      By severity
+                    </p>
+                    <PieChart
+                      data={SEVERITY_LEVELS.map((sev) => ({
+                        label: sev.label,
+                        value: unverifiedSeverityCounts[sev.value] || 0,
+                        color: sev.color,
+                      }))}
+                      size={180}
+                      innerRadiusRatio={0.55}
+                    />
+                  </div>
+                )}
               </div>
 
             </div>
