@@ -28,13 +28,6 @@ import { useState, useEffect, useCallback } from "react";
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const [scraping, setScraping] = useState(false);
-    const [globalScraping, setGlobalScraping] = useState(false);  
-
-    const [scrapeMessage, setScrapeMessage] = useState<string | null>(null);
-    const [scrapeErrors, setScrapeErrors] = useState<string[]>([]);
-    const [showScrapeErrors, setShowScrapeErrors] = useState(false);
-
     const fetchData = useCallback(async () => {
       setLoading(true);
       setError(null);
@@ -80,84 +73,6 @@ import { useState, useEffect, useCallback } from "react";
       fetchData();
     }, [fetchData]);
 
-    const fetchScrapeStatus = useCallback(async () => {
-      try {
-        const response = await fetch(
-          `${API_URL}/api/news/scrape-status`
-        );
-
-        if (!response.ok) return;
-
-        const result = await response.json();
-        setGlobalScraping(result.is_scraping);
-      } catch {
-        // Keep the current status if the status check fails
-      }
-    }, []);
-
-    useEffect(() => {
-      fetchScrapeStatus();
-    }, [fetchScrapeStatus]);
-
-    useEffect(() => {
-      const interval = setInterval(() => {
-        fetchScrapeStatus();
-      }, 5000);
-
-      return () => clearInterval(interval);
-    }, [fetchScrapeStatus]);
-
-    const handleScrape = async () => {
-      setScraping(true);
-      setGlobalScraping(true);
-      setScrapeMessage(null);
-      setShowScrapeErrors(false);
-      setScrapeErrors([]);
-
-      try {
-        const response = await fetch(`${API_URL}/api/news/scrape`, {
-          method: "POST",
-        });
-
-        if (response.status === 409) {
-          setScrapeMessage("A scrape is already in progress.");
-          setScraping(false);
-          await fetchScrapeStatus();
-          return;
-        }
-
-        if (!response.ok) {
-          setScraping(false);
-          throw new Error(`Scrape failed (${response.status})`);
-        }
-
-        const result = await response.json();
-
-        setScrapeMessage(
-          `Scraped ${result.scraped || 0} new article${
-            result.scraped === 1 ? "" : "s"
-          }` +
-            (result.skipped
-              ? ` (${result.skipped} already seen or not BARMM-related)`
-              : "")
-        );
-
-        setScrapeErrors(result.errors || []);
-
-        // Refresh Dashboard UI with newly scraped articles
-        await fetchData();
-
-      } catch (err) {
-        setScrapeMessage(
-          err instanceof Error ? err.message : "Scrape failed"
-        );
-      } finally {
-        setScraping(false);
-
-        // Get the actual global status from backend
-        await fetchScrapeStatus();
-      }
-    };
 
     if (loading) return <LoadingSpinner label="Loading dashboard data..." />;
     if (error) return <ErrorState message={error} />;
@@ -253,48 +168,8 @@ import { useState, useEffect, useCallback } from "react";
               Real-time monitoring of news sentiment and incident reports across the Bangsamoro Autonomous Region
             </p>
           </div>
-          <button
-            onClick={handleScrape}
-            disabled={scraping || globalScraping}
-            className="btn-primary font-bold flex items-center gap-2 text-sm self-start disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RefreshCw
-              className={`w-4 h-4 ${
-                scraping || globalScraping ? "animate-spin" : ""
-              }`}
-            />
-
-            {scraping
-              ? "Scraping News..."
-              : globalScraping
-              ? "Scraping in progress..."
-              : "Scrape Latest News"}
-          </button>
 
         </div>
-
-        {scrapeMessage && (
-          <div className="card p-4 text-sm animate-fade-in border-red-200 bg-red-50">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-red-700">{scrapeMessage}</p>
-              {scrapeErrors.length > 0 && (
-                <button
-                  onClick={() => setShowScrapeErrors((v) => !v)}
-                  className="text-xs text-amber-700 bg-amber-100 px-2 py-1 rounded shrink-0 hover:bg-amber-200 transition-colors"
-                >
-                  {scrapeErrors.length} source issue{scrapeErrors.length === 1 ? "" : "s"} {showScrapeErrors ? "▲" : "▼"}
-                </button>
-              )}
-            </div>
-            {showScrapeErrors && (
-              <ul className="mt-3 space-y-1 text-xs text-slate-500 border-t border-teal-200 pt-3">
-                {scrapeErrors.map((e, i) => (
-                  <li key={i} className="truncate" title={e}>{e.split(":")[0]}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
 
         {/* Stat cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -350,7 +225,7 @@ import { useState, useEffect, useCallback } from "react";
                 <h3 className="font-bold text-slate-900">News Sentiment Distribution</h3>
               </div>
               {totalArticles === 0 ? (
-                <p className="text-sm text-slate-400 py-8 text-center">No articles yet. Click "Scrape Latest News" to fetch data.</p>
+                <p className="text-sm text-slate-400 py-8 text-center">No articles yet. Click "Scrape Latest News" to fetch data in News & Sentiment Feed.</p>
               ) : (
                 <div className="space-y-4">
                   {(["positive", "negative", "neutral"] as SentimentLabel[]).map((label) => {
@@ -408,7 +283,7 @@ import { useState, useEffect, useCallback } from "react";
                 <h3 className="font-bold text-slate-900">Article Category Breakdown</h3>
               </div>
               {totalArticles === 0 ? (
-                <p className="text-sm text-slate-400 py-8 text-center">No articles yet. Click "Scrape Latest News" to fetch data.</p>
+                <p className="text-sm text-slate-400 py-8 text-center">No articles yet. Click "Scrape Latest News" to fetch data in News & Sentiment Feed.</p>
               ) : (
                 <PieChart
                   data={categoryCounts.map((c) => ({ label: c.label, value: c.count, color: c.color }))}
@@ -468,7 +343,7 @@ import { useState, useEffect, useCallback } from "react";
                 <h3 className="font-bold text-slate-900">Recent News Articles</h3>
               </div>
               {recentArticles.length === 0 ? (
-                <EmptyState title="No verified articles yet" message="Click 'Scrape Latest News' to fetch BARMM election news." />
+                <EmptyState title="No verified articles yet" message="Click 'Scrape Latest News' in the News & Sentiment Feed to fetch BARMM election news." />
               ) : (
                 <div className="space-y-3">
                   {recentArticles.map((article) => (
