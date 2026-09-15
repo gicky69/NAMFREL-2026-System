@@ -19,19 +19,107 @@ def get_client_ip(request: Request):
 
     return request.client.host if request.client else None
 
+# endpoint for admin only to list all incidents with optional status filter
 @router.get("", response_model=list[IncidentOut])
 def list_incidents(
-    limit: int = Query(default=100, le=500),
     status: list[str] | None = Query(default=None),
-    profile: Profile = Depends(require_roles("admin", "personnel", "super_admin", "display")),
     db: Session = Depends(get_db),
+    Profile = Depends(require_roles("admin", "super_admin"))
 ):
+
+    if not Profile:
+        raise HTTPException(
+            status_code=403,
+            detail="You must be logged in as an admin to view incidents"
+        )
     query = db.query(Incident)
 
     if status:
         query = query.filter(Incident.status.in_(status))
 
-    return query.order_by(desc(Incident.created_at)).limit(limit).all()
+    return query.order_by(desc(Incident.created_at)).all()
+
+# endpoint for public to list no. of verified, unverified, severity by type
+@router.get("/summary")
+def incidents_summary_stats(
+    db: Session = Depends(get_db),
+):
+    verified_incidents = (
+        db.query(Incident)
+        .filter(Incident.status == "verified")
+        .all()
+    )
+
+    pending_incidents = (
+        db.query(Incident)
+        .filter(Incident.status == "reported")
+        .all()
+    )
+
+    # Severity counts for verified incidents
+    severity = {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "critical": 0,
+    }
+
+    for incident in verified_incidents:
+        value = incident.severity.lower()
+
+        if value in severity:
+            severity[value] += 1
+
+    # Incident type counts
+    incident_type = {}
+
+    for incident in verified_incidents:
+        category = incident.incident_type
+
+        if category:
+            incident_type[category] = (
+                incident_type.get(category, 0) + 1
+            )
+
+    # Province counts
+    provinces = {}
+
+    for incident in verified_incidents:
+        province = incident.province
+
+        if province:
+            provinces[province] = (
+                provinces.get(province, 0) + 1
+            )
+
+    # Pending severity counts
+    pending_severity = {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "critical": 0,
+    }
+
+    for incident in pending_incidents:
+        value = incident.severity.lower()
+
+        if value in pending_severity:
+            pending_severity[value] += 1
+
+    return {
+        "verified": {
+            "total": len(verified_incidents),
+            "critical": severity["critical"],
+            "severity": severity,
+            "incident_type": incident_type,
+            "provinces": provinces,
+        },
+        "unverified": {
+            "total": len(pending_incidents),
+            "critical": pending_severity["critical"],
+            "severity": pending_severity,
+        },
+    }
 
 
 # incident category list
@@ -43,8 +131,16 @@ def list_incident_categories(db: Session = Depends(get_db)):
 def create_incident(
     payload: IncidentCreate,
     request: Request,
+    Profile: Profile = Depends(require_roles("admin", "personnel", "super_admin")),
     db: Session = Depends(get_db)
 ):
+
+    if not Profile:
+        raise HTTPException(
+            status_code=403,
+            detail="You must be logged in to report an incident"
+        )
+    
     score, label = analyze_sentiment(payload.description)
 
     incident = Incident(
@@ -62,8 +158,7 @@ def create_incident(
 
 @router.get("/incident-types", response_model=list[IncidentCategoryOut])
 def list_incident_types(
-    profile: Profile = Depends(require_roles("admin", "personnel", "super_admin", "display")),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     return db.query(IncidentCategory).all()
 
@@ -72,9 +167,15 @@ def list_incident_types(
 def update_incident_status(
     id: str,
     payload: IncidentStatusUpdate,
-    profile: Profile = Depends(require_roles("admin", "personnel", "super_admin")),
     db: Session = Depends(get_db),
+    Profile = Depends(require_roles("admin", "super_admin"))
 ):
+    if not Profile:
+        raise HTTPException(
+            status_code=403,
+            detail="You must be logged in as an admin to update an incident"
+        )
+    
     incident = db.query(Incident).filter(Incident.id == id).first()
 
     if not incident:
@@ -95,7 +196,15 @@ def update_incident(
     incident_id: str,
     incident_data: IncidentUpdate,
     db: Session = Depends(get_db),
+    Profile = Depends(require_roles("admin", "super_admin"))
 ):
+
+    if not Profile:
+        raise HTTPException(
+            status_code=403,
+            detail="You must be logged in as an admin to update an incident"
+        )
+
     incident = (
         db.query(Incident)
         .filter(Incident.id == incident_id)

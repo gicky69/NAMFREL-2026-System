@@ -584,14 +584,6 @@ export default function Admin() {
                       >
                         Make Personnel
                       </button>
-
-                      <button
-                        onClick={() => handleVerifyUser(user.id, 'display')}
-                        className="px-4 py-2 bg-green-50 text-green-700 rounded-md hover:bg-green-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={user.role === 'display' || isSuperAdmin}
-                      >
-                        Make Display
-                      </button>
                       
                       <button 
                         onClick={() => handleVerifyUser(user.id, 'public')}

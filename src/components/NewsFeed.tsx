@@ -6,6 +6,8 @@ import { LoadingSpinner, ErrorState, EmptyState } from "@/components/States";
 import { SentimentBadge } from "@/components/SentimentBadge";
 import { formatDate } from "@/lib/sentiment";
 
+import { auth } from "@/lib/firebase";
+
 type Profile = {
   email: string;
   full_name: string | null;
@@ -14,7 +16,7 @@ type Profile = {
 };
 
 type Props = {
-  profile: Profile;
+  profile: Profile | null;
   onLogout: () => void;
 };
 
@@ -32,6 +34,11 @@ export default function NewsFeed({ profile, onLogout }: Props) {
   const [sourceFilter, setSourceFilter] = useState<string>("all");
 
   const API_URL = import.meta.env.VITE_API_URL;
+
+  const isAdmin =
+    profile?.role === "admin" ||
+    profile?.role === "super_admin";
+
 
   const fetchArticles = useCallback(async () => {
     setLoading(true);
@@ -57,6 +64,12 @@ export default function NewsFeed({ profile, onLogout }: Props) {
   }, [fetchArticles]);
 
   const fetchScrapeStatus = useCallback(async () => {
+
+    if (!isAdmin) {
+      setGlobalScraping(false);
+      return;
+    }
+    
     try {
       const response = await fetch(
         `${API_URL}/api/news/scrape-status`
@@ -69,19 +82,22 @@ export default function NewsFeed({ profile, onLogout }: Props) {
     } catch {
       // Keep the current status if the status check fails
     }
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     fetchScrapeStatus();
   }, [fetchScrapeStatus]);
 
+  // get status only for admins, since the scrape button is only visible to them
   useEffect(() => {
+    if (!isAdmin) return;
     const interval = setInterval(() => {
       fetchScrapeStatus();
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [fetchScrapeStatus]);
+  }, [isAdmin, fetchScrapeStatus]);
+
 
   const handleScrape = async () => {
     setScraping(true);
@@ -90,9 +106,21 @@ export default function NewsFeed({ profile, onLogout }: Props) {
     setScrapeErrors([]);
     setShowScrapeErrors(false);
 
+    // check profile role before scraping
+    if (!isAdmin) {
+      setScraping(false);
+      setGlobalScraping(false);
+      setScrapeMessage("Error: You are not authorized to scrape news.");
+      return;
+    }
+
     try {
+      const token = await auth.currentUser?.getIdToken();
       const response = await fetch(`${API_URL}/api/news/scrape`, {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
       });
 
       if (response.status === 409) {
@@ -167,23 +195,26 @@ export default function NewsFeed({ profile, onLogout }: Props) {
             BARMM election news scraped from Philippine news outlets with automated sentiment analysis
           </p>
         </div>
-        <button
-          onClick={handleScrape}
-          disabled={scraping || globalScraping || profile.role !== "admin" && profile.role !== "super_admin"}
-          className="btn-primary flex items-center gap-2 text-sm self-start disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <RefreshCw
-            className={`w-4 h-4 ${
-              scraping || globalScraping ? "animate-spin" : ""
-            }`}
-          />
+        {isAdmin && (
+          <button
+            onClick={handleScrape}
+            disabled={scraping || globalScraping}
+            className="btn-primary flex items-center gap-2 text-sm self-start disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw
+              className={`w-4 h-4 ${
+                scraping || globalScraping ? "animate-spin" : ""
+              }`}
+            />
 
-          {scraping
-            ? "Scraping..."
-            : globalScraping
-            ? "Scraping in progress..."
-            : "Scrape Latest News"}
-        </button>
+            {scraping
+              ? "Scraping..."
+              : globalScraping
+              ? "Scraping in progress..."
+              : "Scrape Latest News"}
+          </button>
+        )}
+
       </div>
 
       {scrapeMessage && (

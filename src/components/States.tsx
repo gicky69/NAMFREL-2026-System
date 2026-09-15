@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 export function LoadingSpinner({ label }: { label?: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 gap-3">
-      <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
+      <Loader2 className="w-8 h-8 text-primary animate-spin" />
       {label && <p className="text-sm text-slate-500">{label}</p>}
     </div>
   );
