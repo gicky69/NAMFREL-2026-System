@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-  import { TrendingUp, TrendingDown, Minus, Newspaper, AlertTriangle, Activity, MapPin, BarChart3, RefreshCw } from "lucide-react";
+  import { TrendingUp, TrendingDown, Minus, Newspaper, AlertTriangle, Activity, MapPin, BarChart3, RefreshCw, FileWarning, CheckCircle } from "lucide-react";
   import type { NewsArticle, Incident, SentimentLabel } from "@/types";
   import { INCIDENT_TYPES, SEVERITY_LEVELS } from "@/types";
   import { LoadingSpinner, ErrorState, EmptyState } from "@/components/States";
@@ -48,7 +48,7 @@ import { useState, useEffect, useCallback } from "react";
 
         const [articleRes, incidentRes] = await Promise.all([
           fetch(`${API_URL}/api/articles`, { headers }),
-          fetch(`${API_URL}/api/incidents?status=verified`, { headers })
+          fetch(`${API_URL}/api/incidents`, { headers })
         ]);
 
         for (const res of [articleRes, incidentRes]) {
@@ -66,6 +66,7 @@ import { useState, useEffect, useCallback } from "react";
           articleRes.json(),
           incidentRes.json(),
         ]);
+
 
         setData({ articles: articles || [], incidents: incidents || [] });
       } catch (err) {
@@ -163,7 +164,10 @@ import { useState, useEffect, useCallback } from "react";
 
     const { articles, incidents } = data;
 
-    // Sentiment distribution
+    // filter incidents before being used
+    const verifiedIncidents = incidents.filter((i) => i.status === "verified");
+
+    // Sentiment distribution for verified
     const sentimentCounts = { positive: 0, negative: 0, neutral: 0 } as Record<SentimentLabel, number>;
     articles.forEach((a) => {
       if (a.sentiment_label) sentimentCounts[a.sentiment_label]++;
@@ -177,13 +181,13 @@ import { useState, useEffect, useCallback } from "react";
 
     // Incident type distribution
     const incidentTypeCounts: Record<string, number> = {};
-    incidents.forEach((i) => {
+    verifiedIncidents.forEach((i) => {
       incidentTypeCounts[i.incident_type] = (incidentTypeCounts[i.incident_type] || 0) + 1;
     });
 
 // Province distribution for incidents (Reworked Logic)
   const provinceCounts: Record<string, number> = {};
-  incidents.forEach((i) => {
+  verifiedIncidents.forEach((i) => {
     // Only count incidents that are verified in the database
     if (i.status === 'verified') {
       // Safely convert to uppercase to match the GeoJSON properties later
@@ -206,7 +210,7 @@ import { useState, useEffect, useCallback } from "react";
 
     // Severity distribution
     const severityCounts: Record<string, number> = {};
-    incidents.forEach((i) => {
+    verifiedIncidents.forEach((i) => {
       severityCounts[i.severity] = (severityCounts[i.severity] || 0) + 1;
     });
 
@@ -226,7 +230,7 @@ import { useState, useEffect, useCallback } from "react";
     const verifiedArticles = articles.filter((a) => a.status === "verified");
 
     const recentArticles = verifiedArticles.slice(0, 5);
-    const recentIncidents = incidents.slice(0, 5);
+    const recentIncidents = verifiedIncidents.slice(0, 5);
 
     const SentimentIcon = avgSentiment > 0.15 ? TrendingUp : avgSentiment < -0.15 ? TrendingDown : Minus;
     const sentimentColor = avgSentiment > 0.15 ? "text-green-400" : avgSentiment < -0.15 ? "text-red-400" : "text-slate-400";
@@ -313,7 +317,7 @@ import { useState, useEffect, useCallback } from "react";
               <span className="text-sm text-slate-500 font-medium">Incident Reports</span>
               <AlertTriangle className="w-5 h-5 text-orange-600" />
             </div>
-            <p className="text-3xl font-bold text-slate-900">{incidents.length}</p>
+            <p className="text-3xl font-bold text-slate-900">{verifiedIncidents.length}</p>
             <p className="text-xs text-slate-400 mt-1">Community reported</p>
           </div>
 
@@ -389,7 +393,7 @@ import { useState, useEffect, useCallback } from "react";
 
             {/* Second Row */}
             
-            {/* Article Category Breakdown */}
+              {/* Article Category Breakdown */}
             <div className="card p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Newspaper className="w-5 h-5 text-primary" />
@@ -449,8 +453,6 @@ import { useState, useEffect, useCallback } from "react";
               )}
             </div>
 
-            {/* Third Row */}
-
             {/* Recent articles */}
             <div className="card p-6">
               <div className="flex items-center gap-2 mb-4">
@@ -490,47 +492,73 @@ import { useState, useEffect, useCallback } from "react";
               )}
             </div>
 
-            {/* Province distribution (map) */}
-            <div className="card p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <MapPin className="w-5 h-5 text-warning" />
-                <h3 className="font-bold text-slate-900">Incidents by Province</h3>
-              </div>
 
-              {/* Choropleth Heatmap */}
-              <div className="mb-5">
-                <ProvinceMap provinceCounts={provinceCounts} />
-              </div>
 
-              {/* Existing progress bar distribution */}
-              {Object.keys(provinceCounts).length === 0 ? (
-                <p className="text-sm text-slate-400 py-8 text-center">No incidents reported yet.</p>
-              ) : (
-                <div className="space-y-3">
-                  {Object.entries(provinceCounts)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([province, count]) => {
-                      const pct = (count / incidents.length) * 100;
-                      return (
-                        <div key={province}>
-                          <div className="flex items-center justify-between mb-1.5">
-                            <span className="text-sm font-medium text-slate-700">{province}</span>
-                            <span className="text-sm text-slate-500">{count}</span>
-                          </div>
-                          <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
+            <div className="flex flex-col gap-6">
+
+              {/* Province distribution */}
+              <div className="card p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <MapPin className="w-5 h-5 text-warning" />
+                  <h3 className="font-bold text-slate-900">Incidents by Province</h3>
                 </div>
-              )}
-            </div>
-              
 
+                {/* Choropleth Heatmap */}
+                <div className="mb-5">
+                  <ProvinceMap provinceCounts={provinceCounts} />
+                </div>
+
+                {/* Existing progress bar distribution */}
+                {Object.keys(provinceCounts).length === 0 ? (
+                  <p className="text-sm text-slate-400 py-8 text-center">No incidents reported yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {Object.entries(provinceCounts)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([province, count]) => {
+                        const pct = (count / incidents.length) * 100;
+                        return (
+                          <div key={province}>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-sm font-medium text-slate-700">{province}</span>
+                              <span className="text-sm text-slate-500">{count}</span>
+                            </div>
+                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+
+              {/* Unverified Reports */}
+              <div className="card p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileWarning className="w-5 h-5 text-warning" />
+                    <h3 className="font-bold text-slate-900">Unverified Reports</h3>
+                  </div>
+                </div>
+
+                <div className="mt-6 text-center">
+                  <p className="text-4xl font-bold text-slate-900">
+                    {incidents.filter(
+                      (incident) => incident.status === "reported"
+                    ).length}
+                  </p>
+
+                  <p className="text-sm text-slate-500 mt-1">
+                    Reports awaiting verification
+                  </p>
+                </div>
+              </div>
+
+            </div>
 
 
 
