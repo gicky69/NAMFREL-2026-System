@@ -152,7 +152,7 @@ import { useState, useEffect, useCallback } from "react";
     // "Verified" articles = article_status === "verified" (as opposed to pending/rejected)
     const verifiedArticles = articles.filter((a) => a.status === "verified");
 
-    const recentArticles = verifiedArticles.slice(0, 5);
+    const recentArticles = verifiedArticles.slice(0, 9);
     const recentIncidents = verifiedIncidents.slice(0, 5);
 
     const SentimentIcon = avgSentiment > 0.15 ? TrendingUp : avgSentiment < -0.15 ? TrendingDown : Minus;
