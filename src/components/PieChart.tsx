@@ -26,10 +26,10 @@ function arcPath(cx: number, cy: number, r: number, startAngle: number, endAngle
 }
 
 /**
- * Simple, dependency-free SVG pie/donut chart with an adjacent legend.
- * Renders nothing but an empty state if every value is 0.
- */
-export function PieChart({ data, size = 180, innerRadiusRatio = 0 }: PieChartProps) {
+* Simple, dependency-free SVG pie/donut chart with an adjacent legend.
+* Renders nothing but an empty state if every value is 0.
+*/
+export function PieChart({ data, size = 260, innerRadiusRatio = 0 }: PieChartProps) {
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
   if (total === 0) {
@@ -55,7 +55,7 @@ export function PieChart({ data, size = 180, innerRadiusRatio = 0 }: PieChartPro
     });
 
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-6">
+    <div className="flex flex-col items-center gap-6">
       <svg
         width={size}
         height={size}
@@ -76,7 +76,7 @@ export function PieChart({ data, size = 180, innerRadiusRatio = 0 }: PieChartPro
         )}
       </svg>
 
-      <div className="flex-1 w-full space-y-2">
+      <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
         {data.map((d) => {
           const pct = total > 0 ? (d.value / total) * 100 : 0;
           return (

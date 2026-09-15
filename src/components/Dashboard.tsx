@@ -344,7 +344,7 @@ import { useState, useEffect, useCallback } from "react";
                   {(["positive", "negative", "neutral"] as SentimentLabel[]).map((label) => {
                     const count = sentimentCounts[label];
                     const pct = totalArticles > 0 ? (count / totalArticles) * 100 : 0;
-                    const color = label === "positive" ? "bg-green-400" : label === "negative" ? "bg-red-400" : "bg-slate-400";
+                    const color = label === "positive" ? "bg-green-500" : label === "negative" ? "bg-red-500" : "bg-slate-500";
                     return (
                       <div key={label}>
                         <div className="flex items-center justify-between mb-1.5">
@@ -361,22 +361,6 @@ import { useState, useEffect, useCallback } from "react";
                     );
                   })}
                 </div>
-              )}
-            </div>
-
-            {/* Article Category Breakdown */}
-            <div className="card p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Newspaper className="w-5 h-5 text-primary" />
-                <h3 className="font-bold text-slate-900">Article Category Breakdown</h3>
-              </div>
-              {totalArticles === 0 ? (
-                <p className="text-sm text-slate-400 py-8 text-center">No articles yet. Click "Scrape Latest News" to fetch data.</p>
-              ) : (
-                <PieChart
-                  data={categoryCounts.map((c) => ({ label: c.label, value: c.count, color: c.color }))}
-                  innerRadiusRatio={0.55}
-                />
               )}
             </div>
 
@@ -404,6 +388,69 @@ import { useState, useEffect, useCallback } from "react";
             </div>
 
             {/* Second Row */}
+            
+            {/* Article Category Breakdown */}
+            <div className="card p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Newspaper className="w-5 h-5 text-primary" />
+                <h3 className="font-bold text-slate-900">Article Category Breakdown</h3>
+              </div>
+              {totalArticles === 0 ? (
+                <p className="text-sm text-slate-400 py-8 text-center">No articles yet. Click "Scrape Latest News" to fetch data.</p>
+              ) : (
+                <PieChart
+                  data={categoryCounts.map((c) => ({ label: c.label, value: c.count, color: c.color }))}
+                  innerRadiusRatio={0.55}
+                />
+              )}
+            </div>
+
+            {/* Incident Type Distribution */}
+            <div className="card p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <AlertTriangle className="w-5 h-5 text-orange-600" />
+                <h3 className="font-bold text-slate-900">Incident Classification</h3>
+              </div>
+              {incidents.length === 0 ? (
+                <p className="text-sm text-slate-400 py-8 text-center">No incidents reported yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {Object.entries(incidentTypeCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([type, count]) => {
+                      const pct =
+                        incidents.length > 0
+                          ? (count / incidents.length) * 100
+                          : 0;
+
+                      return (
+                        <div key={type}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-sm font-medium text-slate-700">
+                              {type.replace(/_/g, " ")}
+                            </span>
+
+                            <span className="text-sm text-slate-500">
+                              {count}
+                            </span>
+                          </div>
+
+                          <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+
+              )}
+            </div>
+
+            {/* Third Row */}
+
             {/* Recent articles */}
             <div className="card p-6">
               <div className="flex items-center gap-2 mb-4">
@@ -443,93 +490,47 @@ import { useState, useEffect, useCallback } from "react";
               )}
             </div>
 
-
-            <div className="flex flex-col gap-6">
-              {/* Incident Type Distribution */}
-              <div className="card p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <AlertTriangle className="w-5 h-5 text-orange-600" />
-                  <h3 className="font-bold text-slate-900">Incident Classification</h3>
-                </div>
-                {incidents.length === 0 ? (
-                  <p className="text-sm text-slate-400 py-8 text-center">No incidents reported yet.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {Object.entries(incidentTypeCounts)
-                      .sort((a, b) => b[1] - a[1])
-                      .map(([type, count]) => {
-                        const pct =
-                          incidents.length > 0
-                            ? (count / incidents.length) * 100
-                            : 0;
-
-                        return (
-                          <div key={type}>
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-sm font-medium text-slate-700">
-                                {type.replace(/_/g, " ")}
-                              </span>
-
-                              <span className="text-sm text-slate-500">
-                                {count}
-                              </span>
-                            </div>
-
-                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-
-                )}
+            {/* Province distribution (map) */}
+            <div className="card p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <MapPin className="w-5 h-5 text-warning" />
+                <h3 className="font-bold text-slate-900">Incidents by Province</h3>
               </div>
 
-              {/* Province distribution */}
-              <div className="card p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <MapPin className="w-5 h-5 text-warning" />
-                  <h3 className="font-bold text-slate-900">Incidents by Province</h3>
-                </div>
-
-                {/* Choropleth Heatmap */}
-                <div className="mb-5">
-                  <ProvinceMap provinceCounts={provinceCounts} />
-                </div>
-
-                {/* Existing progress bar distribution */}
-                {Object.keys(provinceCounts).length === 0 ? (
-                  <p className="text-sm text-slate-400 py-8 text-center">No incidents reported yet.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {Object.entries(provinceCounts)
-                      .sort((a, b) => b[1] - a[1])
-                      .map(([province, count]) => {
-                        const pct = (count / incidents.length) * 100;
-                        return (
-                          <div key={province}>
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-sm font-medium text-slate-700">{province}</span>
-                              <span className="text-sm text-slate-500">{count}</span>
-                            </div>
-                            <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
-                                style={{ width: `${pct}%` }}
-                              />
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                )}
+              {/* Choropleth Heatmap */}
+              <div className="mb-5">
+                <ProvinceMap provinceCounts={provinceCounts} />
               </div>
-              
+
+              {/* Existing progress bar distribution */}
+              {Object.keys(provinceCounts).length === 0 ? (
+                <p className="text-sm text-slate-400 py-8 text-center">No incidents reported yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {Object.entries(provinceCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([province, count]) => {
+                      const pct = (count / incidents.length) * 100;
+                      return (
+                        <div key={province}>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-sm font-medium text-slate-700">{province}</span>
+                            <span className="text-sm text-slate-500">{count}</span>
+                          </div>
+                          <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-primary rounded-full transition-all duration-700 ease-out"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
+              
+
 
 
 
