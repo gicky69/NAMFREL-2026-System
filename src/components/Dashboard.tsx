@@ -45,8 +45,8 @@ import { useState, useEffect, useCallback } from "react";
         const headers = { Authorization: `Bearer ${token}` };
 
         const [articleRes, incidentRes] = await Promise.all([
-          fetch(`${API_URL}/api/articles?limit=100`, { headers }),
-          fetch(`${API_URL}/api/incidents?limit=100&status=verified`, { headers })
+          fetch(`${API_URL}/api/articles`, { headers }),
+          fetch(`${API_URL}/api/incidents?status=verified`, { headers })
         ]);
 
         for (const res of [articleRes, incidentRes]) {

@@ -93,7 +93,6 @@ def get_scrape_status(db: Session = Depends(get_db)):
 
 @router.get("/articles", response_model=list[NewsArticleOut])
 def list_articles(
-    limit: int = 100,
     election_only: bool = False,
     db: Session = Depends(get_db),
 ):
