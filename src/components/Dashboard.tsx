@@ -421,27 +421,37 @@ import { useState, useEffect, useCallback } from "react";
 
               {/* Unverified Reports */}
               <div className="card p-6">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-2">
                     <FileWarning className="w-5 h-5 text-warning" />
                     <h3 className="font-bold text-slate-900">Unverified Reports</h3>
                   </div>
+                  {(unverifiedSeverityCounts["critical"] || 0) > 0 && (
+                    <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded-full">
+                      {unverifiedSeverityCounts["critical"]} critical
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 mb-4">Community-submitted, pending review</p>
+
+                <div className="flex items-center gap-4 rounded-xl bg-amber-50 border border-amber-100 p-4">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-amber-100 shrink-0">
+                    <FileWarning className="w-6 h-6 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-3xl font-bold text-slate-900 leading-none">
+                      {unverifiedIncidents.length}
+                    </p>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {unverifiedIncidents.length === 1 ? "report" : "reports"} awaiting verification
+                    </p>
+                  </div>
                 </div>
 
-                <div className="mt-6 text-center">
-                  <p className="text-4xl font-bold text-slate-900">
-                    {unverifiedIncidents.length}
-                  </p>
-
-                  <p className="text-sm text-slate-500 mt-1">
-                    Reports awaiting verification
-                  </p>
-                </div>
-
-                {unverifiedIncidents.length > 0 && (
-                  <div className="mt-6 pt-6 border-t border-slate-100">
-                    <p className="text-xs font-medium text-slate-500 mb-3 text-center">
-                      By severity
+                {unverifiedIncidents.length > 0 ? (
+                  <div className="mt-5 pt-5 border-t border-slate-100">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                      Breakdown by severity
                     </p>
                     <PieChart
                       data={SEVERITY_LEVELS.map((sev) => ({
@@ -449,9 +459,15 @@ import { useState, useEffect, useCallback } from "react";
                         value: unverifiedSeverityCounts[sev.value] || 0,
                         color: sev.color,
                       }))}
-                      size={180}
-                      innerRadiusRatio={0.55}
+                      size={140}
+                      innerRadiusRatio={0.6}
+                      legendPosition="side"
                     />
+                  </div>
+                ) : (
+                  <div className="mt-5 pt-5 border-t border-slate-100 flex items-center gap-2 text-sm text-slate-400">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    All reports have been reviewed
                   </div>
                 )}
               </div>
