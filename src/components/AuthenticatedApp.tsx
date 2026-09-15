@@ -107,7 +107,7 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
                 </h1>
 
                 <p className="text-xs font-bold hidden sm:block text-white/90">
-                  BARMM 2026 Elections
+                  BARMM Parliamentary Elections 2026
                 </p>
               </div>
 
@@ -265,8 +265,12 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
       {/* Main content */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
         <div key={page} className="animate-fade-in">
-          {page === "dashboard" && !isRestrictedRole && <Dashboard key={`dash-${refreshKey}`} />}
-          {page === "news" && !isRestrictedRole && <NewsFeed key={`news-${refreshKey}`} />}
+          {page === "dashboard" && !isRestrictedRole && <Dashboard key={`dash-${refreshKey} `}/>}
+
+          {page === "news" && !isRestrictedRole && <NewsFeed key={`news-${refreshKey}`} profile={profile} 
+            onLogout={function (): void {
+            throw new Error("Function not implemented.");
+          } } />}
           {page === "report" && <ReportIncident onSubmitted={triggerRefresh} />}
           {page === "incidents" && !isRestrictedRole && <IncidentsList key={`inc-${refreshKey}`} />}
           {page === "admin" && !isRestrictedRole && <Admin key={`admin-${refreshKey}`} />}
@@ -276,8 +280,8 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
       {/* Footer */}
       <footer className="bg-slate-800 text-slate-400 py-6 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm">
-          <p>BARMM Election Monitor — Bangsamoro Autonomous Region in Muslim Mindanao</p>
-          <p className="text-xs mt-1 text-slate-500">By Team AI - Asia Pacific College - 2026</p>
+          <p>SAIR - Sentiment Analysis and Incident Report</p>
+          <p className="text-xs mt-1 text-slate-500">By Team AI - Asia Pacific College</p>
         </div>
       </footer>
     </div>

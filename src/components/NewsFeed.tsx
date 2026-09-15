@@ -6,7 +6,19 @@ import { LoadingSpinner, ErrorState, EmptyState } from "@/components/States";
 import { SentimentBadge } from "@/components/SentimentBadge";
 import { formatDate } from "@/lib/sentiment";
 
-export default function NewsFeed() {
+type Profile = {
+  email: string;
+  full_name: string | null;
+  role: string;
+  is_verified: boolean;
+};
+
+type Props = {
+  profile: Profile;
+  onLogout: () => void;
+};
+
+export default function NewsFeed({ profile, onLogout }: Props) {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -157,7 +169,7 @@ export default function NewsFeed() {
         </div>
         <button
           onClick={handleScrape}
-          disabled={scraping || globalScraping}
+          disabled={scraping || globalScraping || profile.role !== "admin" && profile.role !== "super_admin"}
           className="btn-primary flex items-center gap-2 text-sm self-start disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <RefreshCw

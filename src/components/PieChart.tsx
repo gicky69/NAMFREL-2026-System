@@ -9,6 +9,8 @@ interface PieChartProps {
   size?: number;
   /** 0 = full pie, 0.6 = donut with a 60%-radius hole */
   innerRadiusRatio?: number;
+  /** "bottom" stacks the legend under the chart (default); "side" places it next to the chart */
+  legendPosition?: "bottom" | "side";
 }
 
 const RADIUS = 100; // fixed viewBox units; `size` scales via width/height only
@@ -29,7 +31,12 @@ function arcPath(cx: number, cy: number, r: number, startAngle: number, endAngle
 * Simple, dependency-free SVG pie/donut chart with an adjacent legend.
 * Renders nothing but an empty state if every value is 0.
 */
-export function PieChart({ data, size = 260, innerRadiusRatio = 0 }: PieChartProps) {
+export function PieChart({
+  data,
+  size = 200,
+  innerRadiusRatio = 0,
+  legendPosition = "bottom",
+}: PieChartProps) {
   const total = data.reduce((sum, d) => sum + d.value, 0);
 
   if (total === 0) {
@@ -54,13 +61,21 @@ export function PieChart({ data, size = 260, innerRadiusRatio = 0 }: PieChartPro
       return { ...d, startAngle, endAngle };
     });
 
+  const isSide = legendPosition === "side";
+
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div
+      className={
+        isSide
+          ? "flex flex-row items-center justify-between gap-6 gap-left-6"
+          : "flex flex-col items-center gap-6"
+      }
+    >
       <svg
         width={size}
         height={size}
         viewBox={`0 0 ${RADIUS * 2} ${RADIUS * 2}`}
-        className="shrink-0"
+        className=" ml-7"
       >
         {slices.map((slice) => (
           <path
@@ -76,11 +91,24 @@ export function PieChart({ data, size = 260, innerRadiusRatio = 0 }: PieChartPro
         )}
       </svg>
 
-      <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
+      <div
+        className={
+          isSide
+            ? "w-auto min-w-[180px] space-y-2"
+            : "w-full grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2"
+        }
+      >
         {data.map((d) => {
           const pct = total > 0 ? (d.value / total) * 100 : 0;
           return (
-            <div key={d.label} className="flex items-center justify-between gap-3 text-sm">
+            <div
+              key={d.label}
+              className={
+                isSide
+                  ? "flex items-center gap-2 text-sm"
+                  : "flex items-center justify-between gap-5 text-sm"
+              }
+            >
               <div className="flex items-center gap-2 min-w-0">
                 <span
                   className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -98,3 +126,4 @@ export function PieChart({ data, size = 260, innerRadiusRatio = 0 }: PieChartPro
     </div>
   );
 }
+ 
