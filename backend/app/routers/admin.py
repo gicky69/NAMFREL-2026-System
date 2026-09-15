@@ -71,6 +71,10 @@ def change_role(
     # Update the is_verified field if provided
     if payload.is_verified is not None:
         user.is_verified = payload.is_verified
+    
+    # If the role is changed to "public", set is_verified to False
+    if payload.role == "public":
+        user.is_verified = False
 
     db.commit()
     db.refresh(user)
@@ -325,3 +329,38 @@ def get_pending_reports(
         }
         for report in reports
     ]
+
+
+# delete
+router.delete("/profiles/{user_id}")
+def delete_user(
+    user_id: str,
+    authorization: str | None = Header(default=None),
+    db: Session = Depends(get_db)
+):
+        if not authorization or not authorization.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Unauthorized")
+
+        token = authorization.replace("Bearer ", "", 1)
+
+        try:
+            decoded_token = verify_firebase_token(token)
+        except Exception:
+            raise HTTPException(status_code=401, detail="Invalid Firebase token")
+
+        requester = db.query(Profile).filter(Profile.firebase_uid == decoded_token["uid"]).first()
+
+        if not requester or requester.role not in ["admin", "super_admin"]:
+            raise HTTPException(status_code=403, detail="Not authorized to delete users")
+
+        user = db.query(Profile).filter(Profile.id == user_id).first()
+
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        db.delete(user)
+        db.commit()
+        return {
+            "message": "User deleted successfully",
+        }
+

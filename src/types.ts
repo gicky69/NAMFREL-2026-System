@@ -31,7 +31,7 @@ export interface UserProfile {
   firebase_uid: string;
   full_name: string | null;
   email: string | null;
-  role: 'public' | 'personnel' | 'admin';
+  role: 'public' | 'personnel' | 'admin' | 'super_admin' | 'display';
   is_verified: boolean;
   created_at: string;
   updated_at: string;

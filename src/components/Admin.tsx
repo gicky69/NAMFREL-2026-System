@@ -167,6 +167,30 @@ export default function Admin() {
     }
   };
 
+  const handleDeleteUser = async (id: string) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("Not authenticated");
+      const token = await user.getIdToken();
+
+      const response = await fetch(`${API_URL}/admin/profiles/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to delete user");
+
+      // Remove the user from the local list
+      setUsers((currentUsers) => currentUsers.filter((u) => u.id !== id));
+
+    } catch (error) {
+      console.error("Error deleting user:", error);
+    }
+  };
+
   const handleEditReport = (incident: IncidentReport) => {
     // Open the edit modal with the selected incident
     setEditingIncident(incident);
@@ -553,12 +577,20 @@ export default function Admin() {
                         onClick={() => handleVerifyUser(user.id, 'personnel')}
                         disabled={user.role === 'personnel' || isSuperAdmin}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-                          user.role === 'personnel' || isSuperAdmin
+                          user.role === 'personnel'
                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                             : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
                         }`}
                       >
                         Make Personnel
+                      </button>
+
+                      <button
+                        onClick={() => handleVerifyUser(user.id, 'display')}
+                        className="px-4 py-2 bg-green-50 text-green-700 rounded-md hover:bg-green-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={user.role === 'display' || isSuperAdmin}
+                      >
+                        Make Display
                       </button>
                       
                       <button 
@@ -567,6 +599,13 @@ export default function Admin() {
                         disabled={user.role === 'public' || isSuperAdmin}
                       >
                         Make Public
+                      </button>
+
+                      <button 
+                        onClick={() => handleDeleteUser(user.id)}
+                        className="px-4 py-2 bg-red-50 text-red-700 rounded-md hover:bg-red-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={user.role === 'public' || isSuperAdmin}>
+                        Delete
                       </button>
                     </div>
                   </div>
