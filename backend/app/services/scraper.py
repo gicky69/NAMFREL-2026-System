@@ -516,10 +516,11 @@ def scrape_all_sources(db: Session) -> tuple[int, int, list[str]]:
             for attempt in attempts:
                 try:
                     s, sk = attempt()
-                    # An empty or entirely filtered result is not considered
-                    # success; the next extraction strategy may have article
-                    # body text that the feed omitted.
-                    if s == 0 and attempt is not attempts[-1]:
+                    # A parsed source with entries that are duplicates or
+                    # irrelevant is a successful no-new-articles result.
+                    # Only retry when the extraction produced no usable
+                    # result at all.
+                    if s == 0 and sk == 0 and attempt is not attempts[-1]:
                         db.rollback()
                         continue
                     scraped += s

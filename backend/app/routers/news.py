@@ -94,6 +94,7 @@ def get_scrape_status(db: Session = Depends(get_db)):
 @router.get("/articles", response_model=list[NewsArticleOut])
 def list_articles(
     election_only: bool = False,
+    limit: int = Query(500, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
     q = db.query(NewsArticle)
