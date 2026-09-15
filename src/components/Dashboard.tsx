@@ -6,6 +6,8 @@ import { useState, useEffect, useCallback } from "react";
   import { SentimentBadge } from "@/components/SentimentBadge";
   import { formatDate } from "@/lib/sentiment";
   import { ProvinceMap } from "@/components/ProvinceMap";
+  import { PieChart } from "@/components/PieChart";
+  import { computeCategoryCounts } from "@/lib/articleCategories";
   import { auth } from "@/lib/firebase";
 
 
@@ -168,6 +170,10 @@ import { useState, useEffect, useCallback } from "react";
     });
 
     const totalArticles = articles.length;
+
+    // Article category breakdown (violence, fraud/vote-buying, threats,
+    // peaceful/positive, general process) derived from title + summary text
+    const categoryCounts = computeCategoryCounts(articles);
 
     // Incident type distribution
     const incidentTypeCounts: Record<string, number> = {};
@@ -355,6 +361,22 @@ import { useState, useEffect, useCallback } from "react";
                     );
                   })}
                 </div>
+              )}
+            </div>
+
+            {/* Article Category Breakdown */}
+            <div className="card p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Newspaper className="w-5 h-5 text-primary" />
+                <h3 className="font-bold text-slate-900">Article Category Breakdown</h3>
+              </div>
+              {totalArticles === 0 ? (
+                <p className="text-sm text-slate-400 py-8 text-center">No articles yet. Click "Scrape Latest News" to fetch data.</p>
+              ) : (
+                <PieChart
+                  data={categoryCounts.map((c) => ({ label: c.label, value: c.count, color: c.color }))}
+                  innerRadiusRatio={0.55}
+                />
               )}
             </div>
 
