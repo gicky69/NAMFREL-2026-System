@@ -4,7 +4,7 @@ import { auth } from "@/lib/firebase";
 import { supabase } from '@/lib/supabase';
 import { UserProfile, Incident, IncidentCategory, NewsSource, NewsArticle} from '@/types';
 import { getIdToken } from 'firebase/auth';
-import { Users, AlertTriangle, Tags, Globe, Check, X, Plus, MapPin, User, Clock, ExternalLink, FileText, Pencil } from 'lucide-react';
+import { Users, AlertTriangle, Tags, Globe, Check, X, Plus, MapPin, User, Clock, ExternalLink, FileText, Pencil, RefreshCw } from 'lucide-react';
 import { formatDate, formatDateTime } from "@/lib/sentiment";
 
 import EditIncidentModal, {  IncidentReport  } from "./EditIncidentModal";
@@ -26,6 +26,7 @@ export default function Admin() {
   const [sources, setSources] = useState<NewsSource[]>([]);
   const [newSourceName, setNewSourceName] = useState("");
   const [newSourceURL, setNewSourceURL] = useState("");
+  const [userTab, setUserTab] = useState<'all' | 'admin' | 'personnel' | 'public' | 'super_admin'>('all');
 
   const [newCategory, setNewCategory] = useState('');
   const [newSource, setNewSource] = useState('');
@@ -523,7 +524,7 @@ export default function Admin() {
       <div className="border-b border-gray-200 mb-6 overflow-x-auto">
         <div className="flex min-w-max gap-2">
           {[
-            { id: 'users', label: 'User Verification', icon: Users },
+            { id: 'users', label: 'User Management', icon: Users },
             { id: 'reports', label: 'Report Verification', icon: AlertTriangle },
             { id: 'categories', label: 'Incident Categories', icon: Tags },
             { id: 'sources', label: 'News Sources', icon: Globe },
@@ -546,71 +547,154 @@ export default function Admin() {
       </div>
 
       <div className="bg-white rounded-lg shadow p-6 border border-gray-100">
-        
+          
+
         {/* USERS TAB */}
         {activeTab === 'users' && (
           <div>
-            <h2 className="text-xl font-semibold mb-4">User Management</h2>
-            <div className="divide-y divide-gray-200">
-              {users.map((user) => {
-                const isSuperAdmin = user.role === 'super_admin';
-                
-                return (
-                  <div key={user.id} className="py-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {user.full_name || user.email} {isSuperAdmin && <span className="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-semibold">Super Admin</span>}
-                      </p>
-                      <p className="text-xs text-gray-400 mb-2"> <span className="font-normal">{user.email}</span></p>
-                      <p className="text-sm text-gray-500">Current Role: <span className="font-semibold">{user.role}</span></p>
-                    </div>
-                    <div className="flex space-x-2">
-                      <button 
-                        onClick={() => handleVerifyUser(user.id, 'admin')}
-                        className="px-4 py-2 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={user.role === 'admin' || isSuperAdmin}
-                      >
-                        Make Admin
-                      </button>
-                      
-                      <button 
-                        onClick={() => handleVerifyUser(user.id, 'personnel')}
-                        disabled={user.role === 'personnel' || isSuperAdmin}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition ${
-                          user.role === 'personnel'
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+            <h2 className="text-xl font-semibold mb-4">User List</h2>
+
+            {/* User Role Tabs */}
+            <div className="border-b border-gray-200 mb-6">
+              <div className="flex gap-6 overflow-x-auto">
+                {[
+                  { id: 'all', label: 'All Users' },
+                  { id: 'super_admin', label: 'Super Admins' },
+                  { id: 'admin', label: 'Administrators' },
+                  { id: 'personnel', label: 'Personnel' },
+                  { id: 'public', label: 'Public Users' },
+                ].map((tab) => {
+                  const count =
+                    tab.id === 'all'
+                      ? users.length
+                      : users.filter((user) => user.role === tab.id).length;
+
+                  const isActive = userTab === tab.id;
+
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setUserTab(tab.id as typeof userTab)}
+                      className={`pb-3 text-sm font-medium whitespace-nowrap border-b-2 transition ${
+                        isActive
+                          ? 'border-primary text-primary'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      {tab.label}
+                      <span
+                        className={`ml-2 px-2 py-0.5 rounded-full text-xs ${
+                          isActive
+                            ? 'bg-blue-50 text-primary'
+                            : 'bg-gray-100 text-gray-500'
                         }`}
                       >
-                        Make Personnel
-                      </button>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-                      <button
-                        onClick={() => handleVerifyUser(user.id, 'display')}
-                        className="px-4 py-2 bg-green-50 text-green-700 rounded-md hover:bg-green-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={user.role === 'display' || isSuperAdmin}
-                      >
-                        Make Display
-                      </button>
-                      
-                      <button 
-                        onClick={() => handleVerifyUser(user.id, 'public')}
-                        className="px-4 py-2 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={user.role === 'public' || isSuperAdmin}
-                      >
-                        Make Public
-                      </button>
+            {/* Users List */}
+            <div className="divide-y divide-gray-200">
+              {users
+                .filter((user) => {
+                  if (userTab === 'all') return true;
+                  return user.role === userTab;
+                })
+                .map((user) => {
+                  const isSuperAdmin = user.role === 'super_admin';
 
-                      <button 
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="px-4 py-2 bg-red-50 text-red-700 rounded-md hover:bg-red-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={user.role === 'public' || isSuperAdmin}>
-                        Delete
-                      </button>
+                  return (
+                    <div
+                      key={user.id}
+                      className="py-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      {/* User Information */}
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {user.full_name || user.email}
+
+                          {isSuperAdmin && (
+                            <span className="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-semibold">
+                              Super Admin
+                            </span>
+                          )}
+                        </p>
+
+                        <p className="text-xs text-gray-400 mb-2">
+                          {user.email}
+                        </p>
+
+                        <p className="text-sm text-gray-500">
+                          Current Role:{' '}
+                          <span className="font-semibold">
+                            {user.role}
+                          </span>
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() =>
+                            handleVerifyUser(user.id, 'admin')
+                          }
+                          className="px-4 py-2 bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={user.role === 'admin' || isSuperAdmin}
+                        >
+                          Make Admin
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleVerifyUser(user.id, 'personnel')
+                          }
+                          disabled={
+                            user.role === 'personnel' || isSuperAdmin
+                          }
+                          className={`px-4 py-2 rounded-md text-sm font-medium transition ${
+                            user.role === 'personnel'
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                          }`}
+                        >
+                          Make Personnel
+                        </button>
+
+                        <button
+                          onClick={() =>
+                            handleVerifyUser(user.id, 'public')
+                          }
+                          className="px-4 py-2 bg-gray-50 text-gray-700 rounded-md hover:bg-gray-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={user.role === 'public' || isSuperAdmin}
+                        >
+                          Make Public
+                        </button>
+
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="px-4 py-2 bg-red-50 text-red-700 rounded-md hover:bg-red-100 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={isSuperAdmin}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+
+              {/* Empty State */}
+              {users.filter((user) => {
+                if (userTab === 'all') return true;
+                return user.role === userTab;
+              }).length === 0 && (
+                <div className="py-12 text-center text-sm text-gray-400">
+                  No users in this category.
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -618,7 +702,12 @@ export default function Admin() {
 
         {activeTab === 'reports' && (
           <div>
-            <h2 className="text-xl font-semibold mb-4">Unverified Incident Reports</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Unverified Incident Reports</h2>
+              <span className="text-sm text-gray-500">
+                {reports.length} pending report{reports.length !== 1 ? 's' : ''}
+              </span>
+            </div>
             {loading && <p className="text-gray-500 py-4">Loading reports...</p>}
             {error && <p className="text-red-600 py-4">{error}</p>}
             
@@ -673,7 +762,7 @@ export default function Admin() {
                         onClick={() => handleEditReport(report)}
                       >
                         
-                        <Pencil size={16} /> Edit
+                        <Pencil size={16} /> <span>Edit</span>
                       </button>
                       <button
                         onClick={() => handleVerifyReport(report.id, true)}
@@ -778,7 +867,13 @@ export default function Admin() {
 
         {activeTab === 'articles' && (
           <div>
-            <h2 className="text-xl font-semibold mb-4">Unverified News Articles</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Unverified News Articles</h2>
+              
+              <span className="text-sm text-gray-500">
+                {pendingArticles.length} pending article{pendingArticles.length !== 1 ? 's' : ''}
+              </span>
+            </div>
 
             <div className="space-y-6">
               {pendingArticles.length === 0 && (
@@ -826,14 +921,14 @@ export default function Admin() {
                     <div className="flex flex-row md:flex-col space-x-2 md:space-x-0 md:space-y-2 shrink-0 md:w-32">
                       <button
                         onClick={() => handleVerifyArticles(article.id, true)}
-                        className="flex-1 flex items-center justify-center space-x-1 px-4 py-2.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors shadow-sm"
+                        className="text-sm flex-1 flex items-center justify-center space-x-1 px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors shadow-sm"
                       >
                         <Check size={16} />
                         <span className="font-medium">Verify</span>
                       </button>
                       <button
                         onClick={() => handleVerifyArticles(article.id, false)}
-                        className="flex-1 flex items-center justify-center space-x-1 px-4 py-2.5 bg-white border border-red-200 text-red-600 rounded-md hover:bg-red-50 transition-colors shadow-sm"
+                        className="text-sm flex-1 flex items-center justify-center space-x-1 px-3 py-2 bg-white border border-red-200 text-red-600 rounded-md hover:bg-red-50 transition-colors shadow-sm"
                       >
                         <X size={16} />
                         <span className="font-medium">Reject</span>

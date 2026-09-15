@@ -153,16 +153,24 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
           organization: formData.organization,
         };
 
+        const token = await auth.currentUser?.getIdToken();
+        if (!token) {
+          throw new Error("Failed to obtain authentication token");
+        }
+
         const res = await fetch(`${API_URL}/api/incidents`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
+          
           body: JSON.stringify(payload),
         });
 
         if (!res.ok) {
           const body = await res.json().catch(() => null);
+          console.error("Incident submission failed:", body || res.statusText);
           throw new Error(
             body?.detail || `Submission failed (${res.status})`
           );

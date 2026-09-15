@@ -10,8 +10,8 @@ from app.schemas import NewsArticleOut
 from app.services.scraper import scrape_all_sources
 from app.routers.auth import require_roles
 
-router = APIRouter(prefix="/api/news", tags=["news"])
 
+router = APIRouter(prefix="/api/news", tags=["news"])
 
 @router.post("/scrape")
 def trigger_scrape(db: Session = Depends(require_roles("admin", "super_admin"))):
@@ -102,7 +102,6 @@ def list_articles(
     if election_only:
         q = q.filter(NewsArticle.is_election_related.is_(True))
     return q.order_by(NewsArticle.published_date.desc()).limit(limit).all()
-
 
 @router.get("/sentiment-status")
 def sentiment_status_summary(db: Session = Depends(get_db)):

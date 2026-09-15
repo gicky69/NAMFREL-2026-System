@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
-import { Newspaper, LayoutDashboard, FileWarning, AlertTriangle, Menu, X } from "lucide-react";
-import { CircleUser, ChevronDown, User, LogOut } from "lucide-react";
+import {
+  Newspaper,
+  LayoutDashboard,
+  FileWarning,
+  AlertTriangle,
+  Menu,
+  X,
+  CircleUser,
+  ChevronDown,
+  LogIn,
+  LogOut,
+} from "lucide-react";
 
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -14,12 +24,36 @@ import Admin from "@/components/Admin";
 
 type Page = "dashboard" | "news" | "report" | "incidents" | "admin";
 
-const ALL_NAV_ITEMS: { id: Page; label: string; icon: typeof LayoutDashboard }[] = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "news", label: "News & Sentiment", icon: Newspaper },
-  { id: "report", label: "Report Incident", icon: FileWarning },
-  { id: "incidents", label: "Incident Reports", icon: AlertTriangle },
-  { id: "admin", label: "Admin", icon: LayoutDashboard }
+const ALL_NAV_ITEMS: {
+  id: Page;
+  label: string;
+  icon: typeof LayoutDashboard;
+}[] = [
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    id: "news",
+    label: "News & Sentiment",
+    icon: Newspaper,
+  },
+  {
+    id: "report",
+    label: "Report Incident",
+    icon: FileWarning,
+  },
+  {
+    id: "incidents",
+    label: "Incident Reports",
+    icon: AlertTriangle,
+  },
+  {
+    id: "admin",
+    label: "Admin",
+    icon: LayoutDashboard,
+  },
 ];
 
 type Profile = {
@@ -30,54 +64,94 @@ type Profile = {
 };
 
 type Props = {
-  profile: Profile;
-  onLogout: () => void;
+  profile?: Profile | null;
+  onLogout?: () => void;
+  onLogin?: () => void;
 };
 
-export default function AuthenticatedApp({ profile, onLogout }: Props) {
+export default function AuthenticatedApp({
+  profile,
+  onLogout,
+  onLogin,
+}: Props) {
+  const [page, setPage] = useState<Page>("dashboard");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const isLoggedIn = !!profile;
+
+  const isAdmin =
+    profile?.role === "admin" ||
+    profile?.role === "super_admin";
+
+  const isPersonnel =
+    profile?.role === "personnel";
+
+  const isDisplay =
+    profile?.role === "display";
+
+  const canReport =
+    isPersonnel || isAdmin;
+
+  const canViewIncidents =
+    isAdmin;
+
+  const navItems = ALL_NAV_ITEMS.filter((item) => {
+    // Public pages
+    if (item.id === "dashboard") return true;
+    if (item.id === "news") return true;
+
+    // Not logged in
+    if (!isLoggedIn) return false;
+
+    // Display-only users
+    if (isDisplay) return false;
+
+    // Report incident
+    if (item.id === "report") {
+      return canReport;
+    }
+
+    // Incident reports
+    if (item.id === "incidents") {
+      return canViewIncidents;
+    }
+
+    // Admin
+    if (item.id === "admin") {
+      return isAdmin;
+    }
+
+    return false;
+  });
+
+
+  useEffect(() => {
+    const allowed = navItems.some((item) => item.id === page);
+
+    if (!allowed) {
+      setPage("dashboard");
+    }
+  }, [page, navItems]);
+
   const handleLogout = async () => {
     try {
       await signOut(auth);
       console.log("User logged out successfully");
-      onLogout();
+
+      setPage("dashboard");
+      setUserMenuOpen(false);
+      onLogout?.();
     } catch (error) {
       console.error("Logout error:", error);
     }
   };
 
-  // Determine allowed navigation items based on role
-  const isRestrictedRole = profile.role === "public" || profile.role === "personnel";
-  const isDisplayRole = profile.role === "display";
-  
-  const navItems = isDisplayRole
-    ? ALL_NAV_ITEMS.filter(
-        (item) => item.id === "dashboard" || item.id === "news"
-      )
-    : isRestrictedRole
-      ? ALL_NAV_ITEMS.filter((item) => item.id === "report")
-      : ALL_NAV_ITEMS.filter(
-          (item) =>
-            item.id !== "admin" ||
-            profile.role === "admin" ||
-            profile.role === "super_admin"
-        );
-
-  // Default page should be "report" for restricted users, otherwise "dashboard"
-  const [page, setPage] = useState<Page>(isRestrictedRole ? "report" : "dashboard");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);  
-
-  // Force redirect if a restricted user somehow lands on an unallowed page
-  useEffect(() => {
-    if (isRestrictedRole && page !== "report") {
-      setPage("report");
-    }
-  }, [isRestrictedRole, page]);
-
   const navigate = useCallback((p: Page) => {
     setPage(p);
     setMobileMenuOpen(false);
+    setUserMenuOpen(false);
   }, []);
 
   const triggerRefresh = useCallback(() => {
@@ -91,7 +165,7 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
 
-      {/* Header */}
+      {/* HEADER */}
       <header className="relative bg-primary text-white sticky top-0 z-50 shadow-lg">
 
         {/* Main Header */}
@@ -113,6 +187,7 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
 
               {/* Desktop Nav */}
               <div className="hidden md:flex items-center gap-3">
+
                 <nav className="flex items-center gap-1">
                   {navItems.map((item) => {
                     const Icon = item.icon;
@@ -134,63 +209,85 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
                   })}
                 </nav>
 
-                {/* User Dropdown */}
+                {/* USER / LOGIN */}
                 <div className="relative">
-                  <button
-                    onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-1 p-2 rounded-lg hover:bg-primary-dark transition-all duration-200"
-                  >
-                    <CircleUser className="w-6 h-6" />
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
 
-                  {userMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden text-slate-700 z-50">
-
-                      <div className="border-t border-slate-200" />
-
+                  {isLoggedIn ? (
+                    <>
                       <button
-                        onClick={() => {
-                          handleLogout();
-                          setUserMenuOpen(false);
-                        }}
-                        className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                        onClick={() =>
+                          setUserMenuOpen(!userMenuOpen)
+                        }
+                        className="flex items-center gap-1 p-2 rounded-lg hover:bg-primary-dark transition-all duration-200"
                       >
-                        <LogOut className="w-4 h-4" />
-                        Logout
+                        <CircleUser className="w-6 h-6" />
+                        <ChevronDown className="w-4 h-4" />
                       </button>
 
-                    </div>
+                      {userMenuOpen && (
+                        <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-xl border border-slate-200 overflow-hidden text-slate-700 z-50">
+
+                          <div className="px-4 py-3">
+                            <p className="text-sm font-semibold text-slate-900">
+                              {profile?.full_name || "User"}
+                            </p>
+
+                            <p className="text-xs text-slate-500 truncate">
+                              {profile?.email}
+                            </p>
+                          </div>
+
+                          <div className="border-t border-slate-200" />
+
+                          <button
+                            onClick={handleLogout}
+                            className="flex items-center gap-3 w-full px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            Logout
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                      onClick={onLogin}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-primary text-sm font-semibold hover:bg-slate-100 transition"
+                    >
+                      <LogIn className="w-4 h-4" />
+                      Sign in
+                    </button>
                   )}
+
                 </div>
               </div>
 
-              {/* Mobile Menu Button */}
+              {/* Mobile Menu */}
               <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                onClick={() =>
+                  setMobileMenuOpen(!mobileMenuOpen)
+                }
                 className="md:hidden p-2 rounded-lg hover:bg-primary-dark"
                 aria-label="Toggle menu"
               >
-                {mobileMenuOpen
-                  ? <X className="w-5 h-5" />
-                  : <Menu className="w-5 h-5" />
-                }
+                {mobileMenuOpen ? (
+                  <X className="w-5 h-5" />
+                ) : (
+                  <Menu className="w-5 h-5" />
+                )}
               </button>
 
             </div>
           </div>
         </div>
 
-        {/* red Line */}
+        {/* RED LINE */}
         <div className="h-1.5 bg-red-500" />
 
-        {/* logo panel container*/}
+        {/* LOGO */}
         <div className="absolute top-0 left-0 z-30">
-          
-          {/* shadow */}
           <div className="drop-shadow-xl">
-            
-            {/* actual logo panel */}
+
             <div
               className="
                 w-44
@@ -203,7 +300,8 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
                 justify-center
               "
               style={{
-                clipPath: "polygon(0 0, 100% 0, 86% 100%, 0 100%)"
+                clipPath:
+                  "polygon(0 0, 100% 0, 86% 100%, 0 100%)",
               }}
             >
               <img
@@ -216,12 +314,12 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* MOBILE NAVIGATION */}
         {mobileMenuOpen && (
           <nav className="md:hidden bg-primary border-t border-primary-dark animate-fade-in relative z-20">
+
             <div className="px-4 py-3 space-y-1">
 
-              {/* Navigation Items */}
               {navItems.map((item) => {
                 const Icon = item.icon;
 
@@ -241,20 +339,31 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
                 );
               })}
 
-              {/* Divider */}
               <div className="border-t border-white/20 my-2" />
 
-              {/* Logout */}
-              <button
-                onClick={() => {
-                  handleLogout();
-                  setMobileMenuOpen(false);
-                }}
-                className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-red-200 hover:bg-red-500/20 hover:text-red-100 transition-all duration-200"
-              >
-                <LogOut className="w-4 h-4" />
-                Logout
-              </button>
+              {isLoggedIn ? (
+                <button
+                  onClick={() => {
+                    handleLogout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-red-200 hover:bg-red-500/20 hover:text-red-100 transition-all duration-200"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    onLogin?.();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-sm font-medium text-white hover:bg-primary-dark transition-all duration-200"
+                >
+                  <LogIn className="w-4 h-4" />
+                  Sign in
+                </button>
+              )}
 
             </div>
           </nav>
@@ -262,36 +371,65 @@ export default function AuthenticatedApp({ profile, onLogout }: Props) {
 
       </header>
 
-      {/* Main content */}
+      {/* MAIN CONTENT */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
-        <div key={page} className="animate-fade-in">
-          {page === "dashboard" && !isRestrictedRole && <Dashboard key={`dash-${refreshKey} `}/>}
 
-          {page === "news" && !isRestrictedRole && <NewsFeed key={`news-${refreshKey}`} profile={profile} 
-            onLogout={function (): void {
-            throw new Error("Function not implemented.");
-          } } />}
-          {page === "report" && <ReportIncident onSubmitted={triggerRefresh} />}
-          {page === "incidents" && !isRestrictedRole && <IncidentsList key={`inc-${refreshKey}`} />}
-          {page === "admin" && !isRestrictedRole && <Admin key={`admin-${refreshKey}`} />}
+        <div key={page} className="animate-fade-in">
+
+          {/* PUBLIC */}
+          {page === "dashboard" && (
+            <Dashboard key={`dash-${refreshKey}`} />
+          )}
+
+          {page === "news" && (
+            <NewsFeed
+              key={`news-${refreshKey}`}
+              profile={profile ?? undefined}
+            />
+          )}
+
+          {/* AUTHENTICATED */}
+          {page === "report" && canReport && (
+            <ReportIncident onSubmitted={triggerRefresh} />
+          )}
+
+          {page === "incidents" && canViewIncidents && (
+            <IncidentsList key={`inc-${refreshKey}`} />
+          )}
+
+          {/* ADMIN */}
+          {page === "admin" && isAdmin && (
+            <Admin key={`admin-${refreshKey}`} />
+          )}
+
         </div>
+
       </main>
 
-      {/* Footer */}
+      {/* FOOTER */}
       <footer className="bg-slate-800 text-slate-400 py-6 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm">
-          <p>SAIR - Sentiment Analysis and Incident Report</p>
-          <p className="text-sm mt-1 text-slate-500 mb-1"> Asia Pacific College</p>
+
+          <p>
+            SAIR - Sentiment Analysis and Incident Reporting
+          </p>
+
+          <p className="text-sm mt-1 text-slate-500 mb-1">
+            Asia Pacific College - School of Engineering
+          </p>
+
           <p className="text-xs text-slate-600">
-            Carl Andrew Villanueva | 
-            Joaquin Paolo Pacete | 
-            Angel David Ornedo | 
-            Gerard Patrick Briones | 
-            Sergio Peruda, Jr. | 
+            Carl Andrew Villanueva |
+            Joaquin Paolo Pacete |
+            Angel David Ornedo |
+            Gerard Patrick Briones |
+            Sergio Peruda, Jr. |
             Luigi Carlo De Jesus
           </p>
+
         </div>
       </footer>
+
     </div>
   );
 }

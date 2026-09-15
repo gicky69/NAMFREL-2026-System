@@ -1,5 +1,5 @@
 import { useState } from "react";
-import logo from "@/assets/apc-logo.png";
+import logo from "@/assets/web-logo.png";
 import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
@@ -27,7 +27,6 @@ export default function Login({ onLogin }: LoginProps) {
 
 			const user = result.user;
 			const token = await user.getIdToken();
-			console.log("ID Token:", token);
 
 			// send backend
 			const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
@@ -44,13 +43,14 @@ export default function Login({ onLogin }: LoginProps) {
 
 			// profile info from backend
 			const profile = await response.json();
-			console.log("User profile from backend:", profile);
 
 			if (profile.is_verified) {
 				console.log("User is verified.")
 			} else {
-				console.log("User is not verified. Redirecting to verification page.");
+				console.log("User is not verified.");
 			}
+
+			onLogin(profile);
 
 		} catch {
 			setError("Unable to sign in with Google. Please try again.");
@@ -63,15 +63,15 @@ export default function Login({ onLogin }: LoginProps) {
 		<main className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-12">
 			<section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm sm:p-10">
 				{/* Logo */}
-				<div className="mx-auto mb-4 w-12 h-12 items-center justify-center">
-					<img src={logo} alt="Logo" className="w-12 h-12" />
+				<div className="mx-auto mb-4 w-full h-16 items-center justify-center">
+					<img src={logo} alt="SAIR Logo" className="h-full w-full object-contain" />
 				</div>
 
 				<p className="text-md font-bold uppercase tracking-[0.2em] text-primary">
-					NAMFREL 2026
+					SAIR
 				</p>
 				<p className="text-xs uppercase tracking-[0.2em] text-primary">
-					Incident Reporting & Sentiment Analysis
+					Sentiment Analysis & Incident Reporting
 				</p>
 				<h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-900">
 					Welcome back
@@ -100,7 +100,12 @@ export default function Login({ onLogin }: LoginProps) {
 				</button>
 
 				{error && <p className="mt-4 text-sm text-red-600" role="alert">{error}</p>}
-				<p className="mt-8 text-xs text-slate-400">Access is limited to authorized Gmail accounts.</p>
+				<p className="mt-8 text-xs text-slate-400">The dashboard is publicly accessible. Sign-in provides access to account-specific features.</p>
+					
+				<p className="mt-4 text-sm text-primary hover:text-primary-dark cursor-pointer" onClick={() => window.location.href = "/"}>
+					Back to the dashboard
+				</p>
+				
 			</section>
 		</main>
 	);
