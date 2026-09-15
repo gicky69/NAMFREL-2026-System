@@ -13,6 +13,8 @@ export default function NewsFeed() {
   const [scraping, setScraping] = useState(false);
   const [globalScraping, setGlobalScraping] = useState(false);
   const [scrapeMessage, setScrapeMessage] = useState<string | null>(null);
+  const [scrapeErrors, setScrapeErrors] = useState<string[]>([]);
+  const [showScrapeErrors, setShowScrapeErrors] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sentimentFilter, setSentimentFilter] = useState<SentimentLabel | "all">("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
@@ -73,6 +75,8 @@ export default function NewsFeed() {
     setScraping(true);
     setGlobalScraping(true);
     setScrapeMessage(null);
+    setScrapeErrors([]);
+    setShowScrapeErrors(false);
 
     try {
       const response = await fetch(`${API_URL}/api/news/scrape`, {
@@ -93,14 +97,16 @@ export default function NewsFeed() {
 
       const result = await response.json();
 
+      const errors = result.errors || [];
+      setScrapeErrors(errors);
       setScrapeMessage(
-        `Scraped ${result.scraped || 0} new articles, skipped ${
-          result.skipped || 0
-        } existing/non-BARMM articles${
-          result.errors?.length
-            ? `. Some source issues: ${result.errors.join("; ")}`
+        `Scraped ${result.scraped || 0} new article${
+          result.scraped === 1 ? "" : "s"
+        }, skipped ${result.skipped || 0} existing or non-BARMM articles${
+          errors.length
+            ? `. ${errors.length} source issue${errors.length === 1 ? "" : "s"}`
             : ""
-        }`
+        }.`
       );
 
       // Refresh News Feed UI
@@ -170,7 +176,26 @@ export default function NewsFeed() {
 
       {scrapeMessage && (
         <div className={`card p-4 text-sm animate-fade-in ${scrapeMessage.startsWith("Error") ? "border-red-200 bg-red-50" : "border-teal-200 bg-teal-50"}`}>
-          <p className={scrapeMessage.startsWith("Error") ? "text-red-700" : "text-teal-700"}>{scrapeMessage}</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className={scrapeMessage.startsWith("Error") ? "text-red-700" : "text-teal-700"}>{scrapeMessage}</p>
+            {scrapeErrors.length > 0 && (
+              <button
+                onClick={() => setShowScrapeErrors((value) => !value)}
+                className="text-xs text-amber-700 bg-amber-100 px-2 py-1 rounded shrink-0 hover:bg-amber-200 transition-colors"
+              >
+                Details {showScrapeErrors ? "▲" : "▼"}
+              </button>
+            )}
+          </div>
+          {showScrapeErrors && (
+            <ul className="mt-3 space-y-1 text-xs text-slate-500 border-t border-teal-200 pt-3">
+              {scrapeErrors.map((error, index) => (
+                <li key={index} className="truncate" title={error}>
+                  {error.split(":")[0]}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 
