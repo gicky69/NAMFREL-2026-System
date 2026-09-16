@@ -30,7 +30,7 @@ export function ProvinceMap({ provinceCounts }: ProvinceMapProps) {
   const geoJsonData = barmmData as any;
   const cotabatoGeoJson = cotabatoCityData as any;
 
-  const styleFeature = (feature: any): PathOptions => {
+const styleFeature = (feature: any): PathOptions => {
     let provinceName =
       feature?.properties?.PROV_NAM ||
       feature?.properties?.ADM2_EN ||
@@ -44,7 +44,12 @@ export function ProvinceMap({ provinceCounts }: ProvinceMapProps) {
 
     const normalizedName = provinceName.toUpperCase();
     const lookupName = normalizedName === "COTABATO CITY" ? "COTABATO CITY (ICC)" : normalizedName;
-    const count = provinceCounts[lookupName] || 0;
+    
+    
+    const matchedKey = Object.keys(provinceCounts).find(
+      key => key.toUpperCase() === lookupName
+    );
+    const count = matchedKey ? provinceCounts[matchedKey] : 0;
 
     return {
       fillColor: getColor(count),
@@ -71,9 +76,15 @@ export function ProvinceMap({ provinceCounts }: ProvinceMapProps) {
     const displayName = provinceName.toUpperCase() === "COTABATO CITY"
       ? "Cotabato City (ICC)"
       : provinceName;
+      
     const normalizedName = provinceName.toUpperCase();
     const lookupName = normalizedName === "COTABATO CITY" ? "COTABATO CITY (ICC)" : normalizedName;
-    const count = provinceCounts[lookupName] || 0;
+    
+    // NEW: Case-insensitive search through the provinceCounts keys
+    const matchedKey = Object.keys(provinceCounts).find(
+      key => key.toUpperCase() === lookupName
+    );
+    const count = matchedKey ? provinceCounts[matchedKey] : 0;
 
     layer.bindTooltip(
       `<strong>${displayName || "Unknown Region"}</strong><br/>${count} verified incident${count === 1 ? "" : "s"}`,
