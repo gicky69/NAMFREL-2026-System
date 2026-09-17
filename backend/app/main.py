@@ -18,7 +18,7 @@ async def lifespan(app: FastAPI):
     load_model()
 
     # for web scraping news articles every 2 hours, start the scheduler
-    start_scheduler()
+    # start_scheduler()
     yield
 
 
