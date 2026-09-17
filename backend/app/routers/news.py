@@ -14,8 +14,17 @@ from app.routers.auth import require_roles
 router = APIRouter(prefix="/api/news", tags=["news"])
 
 @router.post("/scrape")
-def trigger_scrape(db: Session = Depends(require_roles("admin", "super_admin"))):
+def trigger_scrape(
+    db: Session = Depends(get_db)
+    profile: Profile = Depends(require_roles("admin", "super_admin"))
+):
     """Trigger a news scrape with a global PostgreSQL lock."""
+
+    if not profile:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to trigger a scrape."
+        )
 
     # Dedicated connection keeps the advisory lock alive
     lock_conn = engine.connect()
