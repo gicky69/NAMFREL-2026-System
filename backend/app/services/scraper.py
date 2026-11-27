@@ -23,6 +23,7 @@ need it (see BROWSER_FETCH_SOURCES below) plus the HTML-listing path
 """
 from datetime import datetime
 from email.utils import parsedate_to_datetime
+import re
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -64,10 +65,48 @@ BARMM_ELECTION_2026_KEYWORDS = [
 
 BARMM_KEYWORDS = BARMM_KEYWORDS_BASE + BARMM_ELECTION_2026_KEYWORDS
 
+# Batanes region/municipality terms. "ivana" is excluded from bare substring
+# matching to avoid false positives on celebrity/personal names; see
+# _has_ivana_batanes() below.
+BATANES_KEYWORDS_BASE = [
+    "batanes", "basco", "itbayat", "mahatao", "sabtang", "uyugan",
+    "ivana, batanes", "ivana batanes", "ivatan",
+    "batanes election", "batanes special election", "batanes polls",
+    "lone district of batanes", "batanes lone district",
+    "batanes congressional district", "comelec batanes", "comelec-batanes",
+]
+
+BATANES_ELECTION_2026_KEYWORDS = [
+    "batanes special election 2026", "2026 batanes special election",
+    "batanes congressional district special election",
+    "batanes lone congressional district special election",
+    "batanes lone district special election",
+    "special election in batanes",
+    "november 28, 2026 special election", "november 28 2026 special election",
+    "nov. 28, 2026 special election", "nov 28 special election",
+    "batanes election 2026", "2026 batanes elections",
+    "batanes congressional", "lone district of batanes",
+    "batanes representative special election",
+    "batanes house seat special election",
+    "batanes special polls", "batanes candidates", "batanes voters",
+    "batanes poll", "batanes polls", "batanes voter registration",
+    "batanes electoral", "batanes voting",
+    "batanes election results", "batanes turnout",
+    "comelec batanes", "comelec-batanes",
+]
+
+BATANES_KEYWORDS = BATANES_KEYWORDS_BASE + BATANES_ELECTION_2026_KEYWORDS
+ALL_KEYWORDS = BARMM_KEYWORDS + BATANES_KEYWORDS
+ALL_ELECTION_KEYWORDS = BARMM_ELECTION_2026_KEYWORDS + BATANES_ELECTION_2026_KEYWORDS
+
 PROVINCES = [
     "basilan", "lanao del sur", "maguindanao del norte",
     "maguindanao del sur", "maguindanao", "sulu", "tawi-tawi",
     "marawi city", "cotabato city", "lamitan city",
+]
+
+BATANES_LOCATIONS = [
+    "batanes", "basco", "itbayat", "mahatao", "sabtang", "uyugan",
 ]
 
 REQUEST_HEADERS = {
@@ -157,6 +196,18 @@ SOURCE_PROFILES = {
         "feed_urls": ["https://mindanaogoldstardaily.com/feed/"],
         "listing_url": "https://mindanaogoldstardaily.com/category/barmm/",
     },
+    "rappler": {
+        "feed_urls": ["https://www.rappler.com/feed/"],
+        "listing_url": "https://www.rappler.com/philippines/luzon/",
+    },
+    "pia": {
+        "feed_urls": ["https://pia.gov.ph/feed/"],
+        "listing_url": "https://pia.gov.ph/",
+    },
+    "philippine information agency": {
+        "feed_urls": ["https://pia.gov.ph/feed/"],
+        "listing_url": "https://pia.gov.ph/",
+    },
 }
 
 BUILT_IN_SOURCES = [
@@ -208,10 +259,25 @@ def _apply_source_profile(source: dict) -> dict:
     return source
 
 
-def _is_relevant(title: str, summary: str = "") -> bool:
-    """Matches original isBarmmRelated: checks title AND summary, not just title."""
+def _has_ivana_batanes(text: str) -> bool:
+    """Match 'ivana' only when Batanes/Ivatan geographic context is present."""
+    if not re.search(r"\bivana\b", text):
+        return False
+    return any(ctx in text for ctx in ("batanes", "ivatan", "basco", "itbayat", "mahatao", "sabtang", "uyugan"))
+
+
+def _detect_region(title: str, summary: str = "") -> str:
+    """Determine whether an article belongs to 'batanes' or 'barmm'."""
     text = f"{title} {summary}".lower()
-    return any(kw in text for kw in BARMM_KEYWORDS)
+    if any(kw in text for kw in BATANES_KEYWORDS) or _has_ivana_batanes(text):
+        return "batanes"
+    return "barmm"
+
+
+def _is_relevant(title: str, summary: str = "") -> bool:
+    """Checks title AND summary for BARMM or Batanes relevance."""
+    text = f"{title} {summary}".lower()
+    return any(kw in text for kw in ALL_KEYWORDS) or _has_ivana_batanes(text)
 
 
 def _detect_province(title: str, summary: str = "") -> str | None:
@@ -219,12 +285,16 @@ def _detect_province(title: str, summary: str = "") -> str | None:
     for prov in PROVINCES:
         if prov in text:
             return prov.title()
+    if any(loc in text for loc in BATANES_LOCATIONS) or _has_ivana_batanes(text):
+        return "Batanes"
     return None
 
 
 def _extract_keywords(title: str, summary: str = "") -> list[str]:
     text = f"{title} {summary}".lower()
-    found = [kw for kw in BARMM_KEYWORDS if kw in text]
+    found = [kw for kw in ALL_KEYWORDS if kw in text]
+    if _has_ivana_batanes(text):
+        found.append("ivana, batanes")
     seen = []
     for kw in found:
         if kw not in seen:
@@ -234,12 +304,9 @@ def _extract_keywords(title: str, summary: str = "") -> list[str]:
 
 def _is_election_related(title: str, summary: str = "") -> bool:
     """Narrower check than _is_relevant: true only for the 2026-election
-    terms, not general BARMM/region coverage. Useful for prioritizing or
-    tagging election-specific articles downstream (e.g. a dashboard filter
-    or a higher-priority scrape cadence) without changing what counts as
-    "relevant enough to save" in _is_relevant."""
+    terms, not general regional coverage."""
     text = f"{title} {summary}".lower()
-    return any(kw in text for kw in BARMM_ELECTION_2026_KEYWORDS)
+    return any(kw in text for kw in ALL_ELECTION_KEYWORDS)
 
 
 def _parse_pub_date(entry):
@@ -291,6 +358,7 @@ def _save_if_new(db: Session, title: str, url: str, summary: str, source_name: s
         summary=summary[:500] if summary else None,
         keywords=_extract_keywords(title, summary),
         province=_detect_province(title, summary),
+        region=_detect_region(title, summary),
         is_election_related=_is_election_related(title, summary),
         status="pending",           # admin verification workflow (pending/verified/rejected)
         sentiment_status="pending",    # sentiment analysis workflow -- now complete

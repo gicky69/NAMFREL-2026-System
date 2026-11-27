@@ -29,7 +29,12 @@ const BARMM_KEYWORDS = [
 const BATANES_KEYWORDS = [
   "batanes", "basco", "itbayat", "mahatao", "sabtang", "uyugan",
   "ivana, batanes", "ivana batanes", "ivatan",
-  "batanes election", "batanes polls", "comelec batanes",
+  "batanes election", "batanes special election", "batanes special election 2026",
+  "batanes congressional district special election",
+  "batanes lone congressional district special election",
+  "november 28, 2026 special election", "november 28 2026 special election",
+  "special election in batanes", "lone district of batanes",
+  "batanes polls", "comelec batanes",
 ];
 
 const ALL_KEYWORDS = [...BARMM_KEYWORDS, ...BATANES_KEYWORDS];

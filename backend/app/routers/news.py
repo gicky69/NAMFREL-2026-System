@@ -104,12 +104,15 @@ def get_scrape_status(db: Session = Depends(get_db)):
 @router.get("/articles", response_model=list[NewsArticleOut])
 def list_articles(
     election_only: bool = False,
+    region: str | None = Query(default=None),
     limit: int = Query(500, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
     q = db.query(NewsArticle)
     if election_only:
         q = q.filter(NewsArticle.is_election_related.is_(True))
+    if region:
+        q = q.filter(NewsArticle.region == region)
     return q.order_by(NewsArticle.published_date.desc()).limit(limit).all()
 
 @router.get("/sentiment-status")

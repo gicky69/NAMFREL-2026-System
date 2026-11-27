@@ -19,10 +19,20 @@ def get_client_ip(request: Request):
 
     return request.client.host if request.client else None
 
+def _derive_region(province: str | None, explicit_region: str | None = None) -> str:
+    """Derive election region from province name unless explicitly provided."""
+    if province and province.strip().lower() == "batanes":
+        return "batanes"
+    if explicit_region in ("barmm", "batanes"):
+        return explicit_region
+    return "barmm"
+
+
 # endpoint for admin only to list all incidents with optional status filter
 @router.get("", response_model=list[IncidentOut])
 def list_incidents(
     status: list[str] | None = Query(default=None),
+    region: str | None = Query(default=None),
     db: Session = Depends(get_db),
     Profile = Depends(require_roles("admin", "super_admin"))
 ):
@@ -36,25 +46,26 @@ def list_incidents(
 
     if status:
         query = query.filter(Incident.status.in_(status))
+    if region:
+        query = query.filter(Incident.region == region)
 
     return query.order_by(desc(Incident.created_at)).all()
 
 # endpoint for public to list no. of verified, unverified, severity by type
 @router.get("/summary")
 def incidents_summary_stats(
+    region: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ):
-    verified_incidents = (
-        db.query(Incident)
-        .filter(Incident.status == "verified")
-        .all()
-    )
+    verified_query = db.query(Incident).filter(Incident.status == "verified")
+    pending_query = db.query(Incident).filter(Incident.status == "reported")
 
-    pending_incidents = (
-        db.query(Incident)
-        .filter(Incident.status == "reported")
-        .all()
-    )
+    if region:
+        verified_query = verified_query.filter(Incident.region == region)
+        pending_query = pending_query.filter(Incident.region == region)
+
+    verified_incidents = verified_query.all()
+    pending_incidents = pending_query.all()
 
     # Severity counts for verified incidents
     severity = {
@@ -81,8 +92,9 @@ def incidents_summary_stats(
                 incident_type.get(category, 0) + 1
             )
 
-    # Province counts
+    # Province & municipality counts
     provinces = {}
+    municipalities = {}
 
     for incident in verified_incidents:
         province = incident.province
@@ -90,6 +102,13 @@ def incidents_summary_stats(
         if province:
             provinces[province] = (
                 provinces.get(province, 0) + 1
+            )
+
+        municipality = incident.municipality
+
+        if municipality:
+            municipalities[municipality] = (
+                municipalities.get(municipality, 0) + 1
             )
 
     # Pending severity counts
@@ -113,6 +132,7 @@ def incidents_summary_stats(
             "severity": severity,
             "incident_type": incident_type,
             "provinces": provinces,
+            "municipalities": municipalities,
         },
         "unverified": {
             "total": len(pending_incidents),
@@ -142,9 +162,11 @@ def create_incident(
         )
     
     score, label = analyze_sentiment(payload.description)
+    data = payload.model_dump()
+    data["region"] = _derive_region(payload.province, payload.region)
 
     incident = Incident(
-        **payload.model_dump(),
+        **data,
         reporter_ip=get_client_ip(request),
         sentiment_score=score,
         sentiment_label=label
@@ -218,6 +240,8 @@ def update_incident(
         )
 
     update_data = incident_data.model_dump(exclude_unset=True)
+    if "province" in update_data and "region" not in update_data:
+        update_data["region"] = _derive_region(update_data["province"])
 
     for field, value in update_data.items():
         setattr(incident, field, value)

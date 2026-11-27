@@ -12,14 +12,13 @@ router = APIRouter(prefix="/api/articles", tags=["articles"])
 @router.get("", response_model=list[NewsArticleOut])
 def list_articles(
     status = Query(default="verified"),
+    region: str | None = Query(default=None),
     db: Session = Depends(get_db)
 ):
-    return(
-        db.query(NewsArticle)
-        .order_by(desc(NewsArticle.published_date))
-        .filter(NewsArticle.status == status)
-        .all()
-    )
+    query = db.query(NewsArticle).filter(NewsArticle.status == status)
+    if region:
+        query = query.filter(NewsArticle.region == region)
+    return query.order_by(desc(NewsArticle.published_date)).all()
     
 @router.patch("/{article_id}/status", response_model=NewsArticleOut)
 def update_article_status(

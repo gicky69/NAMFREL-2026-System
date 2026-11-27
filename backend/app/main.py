@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="BARMM Election Monitor API", lifespan=lifespan)
+app = FastAPI(title="NAMFREL Election Monitor API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

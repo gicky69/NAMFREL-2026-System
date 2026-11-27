@@ -77,6 +77,7 @@ class Incident(Base):
     status = Column(incident_status, nullable=False, default="reported")  # reported | verified | resolved | rejected
     province = Column(String, nullable=False)
     municipality = Column(String, nullable=True)
+    region = Column(String, nullable=False, default="barmm")
     incident_date = Column(Date, nullable=False)
     incident_time = Column(DateTime(timezone=True), nullable=False)
     reported_by = Column(String, nullable=True)
@@ -128,6 +129,7 @@ class NewsArticle(Base):
     source = Column(String, nullable=True)
     published_date = Column(DateTime(timezone=True), nullable=True)
     province = Column(String, nullable=True)
+    region = Column(String, nullable=False, default="barmm")
     keywords = Column(ARRAY(String), nullable=True)
     status = Column(article_status, nullable=False, default="pending")  # renamed from sentiment_verifiy
     sentiment_score = Column(Float, nullable=True)

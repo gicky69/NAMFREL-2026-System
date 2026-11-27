@@ -13,6 +13,7 @@ class IncidentCreate(BaseModel):
     severity: str
     province: str
     municipality: Optional[str] = None
+    region: Optional[str] = None
     incident_date: datetime.date
     incident_time: datetime.time
     reported_by: Optional[str] = None
@@ -31,6 +32,7 @@ class IncidentUpdate(BaseModel):
     severity: Optional[str] = None
     province: Optional[str] = None
     municipality: Optional[str] = None
+    region: Optional[str] = None
     incident_date: Optional[datetime.date] = None
     incident_time: Optional[datetime.time] = None
     reported_by: Optional[str] = None
@@ -54,6 +56,7 @@ class IncidentOut(BaseModel):
     status: str
     province: str
     municipality: Optional[str] = None
+    region: Optional[str] = None
     incident_date: datetime.date
     incident_time: datetime.time
     reported_by: Optional[str] = None
@@ -83,6 +86,7 @@ class NewsArticleOut(BaseModel):
     source: Optional[str] = None
     published_date: Optional[datetime.datetime] = None
     province: Optional[str] = None
+    region: str = "barmm"
     keywords: Optional[list[str]] = None
     status: str
     sentiment_score: Optional[float] = None
@@ -135,6 +139,7 @@ class DashboardSummary(BaseModel):
     sentiment_counts: dict[str, int]
     incident_type_counts: dict[str, int]
     province_counts: dict[str, int]
+    municipality_counts: dict[str, int] = {}
     severity_counts: dict[str, int]
     recent_articles: list[NewsArticleOut]
     recent_incidents: list[IncidentOut]
