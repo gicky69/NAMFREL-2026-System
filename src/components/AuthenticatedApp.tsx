@@ -21,6 +21,7 @@ import ReportIncident from "@/components/ReportIncident";
 import IncidentsList from "@/components/IncidentsList";
 import logo from "@/assets/web-logo.png";
 import Admin from "@/components/Admin";
+import { REGION_CONFIG, type ElectionRegion } from "@/types";
 
 type Page = "dashboard" | "news" | "report" | "incidents" | "admin";
 
@@ -75,6 +76,7 @@ export default function AuthenticatedApp({
   onLogin,
 }: Props) {
   const [page, setPage] = useState<Page>("dashboard");
+  const [region, setRegion] = useState<ElectionRegion>("barmm");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -137,6 +139,10 @@ export default function AuthenticatedApp({
 
   const handleLogout = async () => {
     try {
+      if (!auth) {
+        throw new Error("Firebase authentication is not configured");
+      }
+
       await signOut(auth);
       console.log("User logged out successfully");
 
@@ -181,12 +187,34 @@ export default function AuthenticatedApp({
                 </h1>
 
                 <p className="text-xs font-bold hidden sm:block text-white/90">
-                  BARMM Parliamentary Elections 2026
+                  {REGION_CONFIG[region].label}
                 </p>
               </div>
 
               {/* Desktop Nav */}
               <div className="hidden md:flex items-center gap-3">
+
+                {/* Region Switcher */}
+                <div
+                  className="flex items-center rounded-lg bg-white/15 p-0.5 text-xs font-semibold"
+                  role="group"
+                  aria-label="Select election region"
+                >
+                  {(["barmm", "batanes"] as ElectionRegion[]).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setRegion(r)}
+                      className={`px-2.5 py-1 rounded-md transition-all ${
+                        region === r
+                          ? "bg-white text-primary shadow-sm"
+                          : "text-white/90 hover:text-white"
+                      }`}
+                    >
+                      {REGION_CONFIG[r].shortLabel}
+                    </button>
+                  ))}
+                </div>
 
                 <nav className="flex items-center gap-1">
                   {navItems.map((item) => {
@@ -320,6 +348,24 @@ export default function AuthenticatedApp({
 
             <div className="px-4 py-3 space-y-1">
 
+              <div className="flex items-center gap-2 pb-2 mb-2 border-b border-white/20">
+                <span className="text-xs font-medium text-white/80">Election:</span>
+                {(["barmm", "batanes"] as ElectionRegion[]).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRegion(r)}
+                    className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                      region === r
+                        ? "bg-white text-primary"
+                        : "bg-white/15 text-white hover:bg-white/25"
+                    }`}
+                  >
+                    {REGION_CONFIG[r].shortLabel}
+                  </button>
+                ))}
+              </div>
+
               {navItems.map((item) => {
                 const Icon = item.icon;
 
@@ -378,23 +424,24 @@ export default function AuthenticatedApp({
 
           {/* PUBLIC */}
           {page === "dashboard" && (
-            <Dashboard key={`dash-${refreshKey}`} />
+            <Dashboard key={`dash-${refreshKey}`} region={region} />
           )}
 
           {page === "news" && (
             <NewsFeed
               key={`news-${refreshKey}`}
-              profile={profile ?? undefined}
+              region={region}
+              profile={profile ?? null}
             />
           )}
 
           {/* AUTHENTICATED */}
           {page === "report" && canReport && (
-            <ReportIncident onSubmitted={triggerRefresh} />
+            <ReportIncident region={region} onSubmitted={triggerRefresh} />
           )}
 
           {page === "incidents" && canViewIncidents && (
-            <IncidentsList key={`inc-${refreshKey}`} />
+            <IncidentsList key={`inc-${refreshKey}`} region={region} />
           )}
 
           {/* ADMIN */}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from "react-dom";
 import { auth } from "@/lib/firebase";
 import { supabase } from '@/lib/supabase';
-import { UserProfile, Incident, IncidentCategory, NewsSource, NewsArticle} from '@/types';
+import { UserProfile, Incident, IncidentCategory, NewsSource, NewsArticle, ElectionRegion, REGION_CONFIG, inferRegionFromProvince } from '@/types';
 import { getIdToken } from 'firebase/auth';
 import { Users, AlertTriangle, Tags, Globe, Check, X, Plus, MapPin, User, Clock, ExternalLink, FileText, Pencil, RefreshCw } from 'lucide-react';
 import { formatDate, formatDateTime } from "@/lib/sentiment";
@@ -41,6 +41,7 @@ export default function Admin() {
   // News Article
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [pendingArticles, setPendingArticles] = useState<NewsArticle[]>([]);
+  const [regionFilter, setRegionFilter] = useState<'all' | ElectionRegion>('all');
   
   useEffect(() => {
     fetchUsers();
@@ -52,7 +53,7 @@ export default function Admin() {
 
   const fetchUsers = async () => {
     try {
-      const token = await auth.currentUser?.getIdToken();
+      const token = await auth?.currentUser?.getIdToken();
       const response = await fetch(`${API_URL}/admin/profiles`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -69,7 +70,7 @@ export default function Admin() {
     setError(null);
     try {
 
-      const user = auth.currentUser;
+      const user = auth?.currentUser;
       if (!user){
         throw new Error("Not Authenticated");
       }
@@ -93,7 +94,7 @@ export default function Admin() {
 
  const fetchCategories = async () => {
     try {
-      const token = await auth.currentUser?.getIdToken();
+      const token = await auth?.currentUser?.getIdToken();
       const response = await fetch(`${API_URL}/admin/categories`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -126,7 +127,7 @@ export default function Admin() {
 
   const handleVerifyUser = async (id: string, newRole: string) => {
     try {
-      const user = auth.currentUser;
+      const user = auth?.currentUser;
       if (!user) throw new Error("Not authenticated");
       const token = await user.getIdToken();
 
@@ -170,7 +171,7 @@ export default function Admin() {
 
   const handleDeleteUser = async (id: string) => {
     try {
-      const user = auth.currentUser;
+      const user = auth?.currentUser;
       if (!user) throw new Error("Not authenticated");
       const token = await user.getIdToken();
 
@@ -199,7 +200,7 @@ export default function Admin() {
 
   const handleSaveReport = async (updatedIncident: IncidentReport) => {
     try {
-      const user = auth.currentUser;
+      const user = auth?.currentUser;
 
       if (!user) {
         throw new Error("Not authenticated");
@@ -289,7 +290,7 @@ export default function Admin() {
   const handleVerifyReport = async (id: string, isVerified: boolean) => {
     const newStatus = isVerified ? 'verified' : 'rejected';
     try {
-      const token = await auth.currentUser?.getIdToken();
+      const token = await auth?.currentUser?.getIdToken();
       const res = await fetch(`${API_URL}/api/incidents/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json",
@@ -327,7 +328,7 @@ export default function Admin() {
   const handleVerifyArticles = async (id: string, isVerified: boolean) => {
     const newStatus = isVerified ? "verified" : "rejected";
     try {
-      const token = await auth.currentUser?.getIdToken();
+      const token = await auth?.currentUser?.getIdToken();
       const res = await fetch(`${API_URL}/api/articles/${id}/status`, {
         method: "PATCH",
         headers: {
@@ -361,7 +362,7 @@ export default function Admin() {
     if (!newCategory) return;
 
     try {
-      const token = await auth.currentUser?.getIdToken();
+      const token = await auth?.currentUser?.getIdToken();
       const response = await fetch(`${API_URL}/admin/categories`, {
         method: "POST",
         headers: {
@@ -400,7 +401,7 @@ export default function Admin() {
 
   const handleDeleteCategory = async (categoryName: string) => {
     try {
-      const token = await auth.currentUser?.getIdToken();
+      const token = await auth?.currentUser?.getIdToken();
 
       const response = await fetch(
         `${API_URL}/admin/categories/${encodeURIComponent(categoryName)}`,
@@ -454,7 +455,7 @@ export default function Admin() {
   const handleAddSource = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSourceName || !newSourceURL) return;
-    const token = await auth.currentUser?.getIdToken();
+    const token = await auth?.currentUser?.getIdToken();
     const rest = await fetch(`${API_URL}/api/sources`, {
       method: "POST",
       headers: {
@@ -488,7 +489,7 @@ export default function Admin() {
   };
 
   const handleDeleteSource = async (id: string) => {
-    const token = await auth.currentUser?.getIdToken();
+    const token = await auth?.currentUser?.getIdToken();
     const res = await fetch(`${API_URL}/api/sources/${id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}`},
@@ -700,23 +701,42 @@ export default function Admin() {
         )}
 
 
-        {activeTab === 'reports' && (
+        {activeTab === 'reports' && (() => {
+          const filteredReports = reports.filter((r) => {
+            if (regionFilter === 'all') return true;
+            const rRegion = r.region || inferRegionFromProvince(r.province);
+            return rRegion === regionFilter;
+          });
+          return (
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h2 className="text-xl font-semibold">Unverified Incident Reports</h2>
-              <span className="text-sm text-gray-500">
-                {reports.length} pending report{reports.length !== 1 ? 's' : ''}
-              </span>
+              <div className="flex items-center gap-3">
+                <select
+                  value={regionFilter}
+                  onChange={(e) => setRegionFilter(e.target.value as 'all' | ElectionRegion)}
+                  className="text-sm rounded-md border border-gray-300 px-2.5 py-1.5 bg-white"
+                >
+                  <option value="all">All Regions</option>
+                  <option value="barmm">BARMM</option>
+                  <option value="batanes">Batanes</option>
+                </select>
+                <span className="text-sm text-gray-500">
+                  {filteredReports.length} pending report{filteredReports.length !== 1 ? 's' : ''}
+                </span>
+              </div>
             </div>
             {loading && <p className="text-gray-500 py-4">Loading reports...</p>}
             {error && <p className="text-red-600 py-4">{error}</p>}
             
             <div className="space-y-6">
-              {!loading && reports.length === 0 && (
+              {!loading && filteredReports.length === 0 && (
                 <p className="text-gray-500 py-4 border-2 border-dashed border-gray-200 rounded-lg text-center bg-gray-50">No pending reports to verify.</p>
               )}
               
-              {reports.map((report) => (
+              {filteredReports.map((report) => {
+                const reportRegion = report.region || inferRegionFromProvince(report.province);
+                return (
                 <div key={report.id} className="p-5 border border-gray-200 rounded-xl bg-white shadow-sm flex flex-col gap-5 transition hover:shadow-md">
                   
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
@@ -733,6 +753,9 @@ export default function Admin() {
                         
                         {/* Status Badges */}
                         <div className="flex gap-2">
+                          <span className="px-2.5 py-1 text-xs rounded-full font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                            {REGION_CONFIG[reportRegion].shortLabel}
+                          </span>
                           <span className={`px-2.5 py-1 text-xs rounded-full font-medium capitalize border ${
                             report.severity === 'critical' ? 'bg-red-50 text-red-700 border-red-200' :
                             report.severity === 'high' ? 'bg-orange-50 text-orange-700 border-orange-200' :
@@ -827,10 +850,12 @@ export default function Admin() {
 
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {activeTab === 'categories' && (
           <div>
@@ -865,27 +890,56 @@ export default function Admin() {
           </div>
         )}
 
-        {activeTab === 'articles' && (
+        {activeTab === 'articles' && (() => {
+          const filteredArticles = pendingArticles.filter((a) => {
+            if (regionFilter === 'all') return true;
+            const aRegion = a.region || inferRegionFromProvince(a.province);
+            return aRegion === regionFilter;
+          });
+          return (
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h2 className="text-xl font-semibold">Unverified News Articles</h2>
               
-              <span className="text-sm text-gray-500">
-                {pendingArticles.length} pending article{pendingArticles.length !== 1 ? 's' : ''}
-              </span>
+              <div className="flex items-center gap-3">
+                <select
+                  value={regionFilter}
+                  onChange={(e) => setRegionFilter(e.target.value as 'all' | ElectionRegion)}
+                  className="text-sm rounded-md border border-gray-300 px-2.5 py-1.5 bg-white"
+                >
+                  <option value="all">All Regions</option>
+                  <option value="barmm">BARMM</option>
+                  <option value="batanes">Batanes</option>
+                </select>
+                <span className="text-sm text-gray-500">
+                  {filteredArticles.length} pending article{filteredArticles.length !== 1 ? 's' : ''}
+                </span>
+              </div>
             </div>
 
             <div className="space-y-6">
-              {pendingArticles.length === 0 && (
+              {filteredArticles.length === 0 && (
                 <p className="text-gray-500 py-4 border-2 border-dashed border-gray-200 rounded-lg text-center bg-gray-50">
                   No pending articles to verify.
                 </p>
               )}
 
-              {pendingArticles.map((article) => (
+              {filteredArticles.map((article) => {
+                const articleRegion = article.region || inferRegionFromProvince(article.province);
+                return (
                 <div key={article.id} className="p-5 border border-gray-200 rounded-xl bg-white shadow-sm flex flex-col gap-4 transition hover:shadow-md">
                   <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                     <div className="flex-1 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="px-2 py-0.5 text-xs rounded-full font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                          {REGION_CONFIG[articleRegion].shortLabel}
+                        </span>
+                        {article.province && (
+                          <span className="text-xs text-gray-500 flex items-center gap-1">
+                            <MapPin size={12} /> {article.province}
+                          </span>
+                        )}
+                      </div>
                       <h3 className="font-semibold text-lg text-gray-900 leading-tight">{article.title}</h3>
                       <p className="text-sm text-gray-500 flex items-center gap-2">
                         <Clock size={14} />
@@ -936,10 +990,12 @@ export default function Admin() {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {activeTab === 'sources' && (
           <div>

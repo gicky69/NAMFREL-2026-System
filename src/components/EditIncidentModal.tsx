@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { auth } from "@/lib/firebase";
 import { IncidentCategory } from '@/types';
-import { BARMM_PROVINCES, SEVERITY_LEVELS } from "@/types";
+import { BARMM_PROVINCES, BATANES_MUNICIPALITIES, SEVERITY_LEVELS } from "@/types";
 
 export type IncidentReport = {
 	id: string | number,
@@ -12,13 +12,13 @@ export type IncidentReport = {
     incident_type: string,
     severity: string,
     province: string,
-    municipality: string,
+    municipality: string | null,
     incident_date: string,
     incident_time: string,
-    organization: string,
-    contact_info: string,
-	reported_by: string,
-	category: string,
+    organization?: string,
+    contact_info: string | null,
+	reported_by: string | null,
+	category?: string,
 };
 
 type EditIncidentModalProps = {
@@ -48,7 +48,7 @@ export default function EditIncidentModal({
 
 	const fetchCategories = async () => {
 		try {
-		const token = await auth.currentUser?.getIdToken();
+		const token = await auth?.currentUser?.getIdToken();
 		const response = await fetch(`${API_URL}/admin/categories`, {
 			headers: { Authorization: `Bearer ${token}` },
 		});
@@ -240,22 +240,43 @@ export default function EditIncidentModal({
 						style={styles.input}
 						>
 							<option value="">Select Province</option>
-							{BARMM_PROVINCES.map((prov) => (
-							<option key={prov} value={prov}>{prov}</option>
-							))}
+							<optgroup label="BARMM">
+								{BARMM_PROVINCES.map((prov) => (
+								<option key={prov} value={prov}>{prov}</option>
+								))}
+							</optgroup>
+							<optgroup label="Region II">
+								<option value="Batanes">Batanes</option>
+							</optgroup>
 					</select>
 				</label>
 
 				<label style={styles.label}>
 				Municipality
 
-				<input
-					value={form.municipality ?? ""}
-					onChange={(event) =>
-					updateField("municipality", event.target.value)
-					}
-					style={styles.input}
-				/>
+				{form.province === "Batanes" ? (
+					<select
+						value={form.municipality ?? ""}
+						onChange={(event) =>
+							updateField("municipality", event.target.value)
+						}
+						className="input-field cursor-pointer"
+						style={styles.input}
+					>
+						<option value="">Select Municipality</option>
+						{BATANES_MUNICIPALITIES.map((mun) => (
+							<option key={mun} value={mun}>{mun}</option>
+						))}
+					</select>
+				) : (
+					<input
+						value={form.municipality ?? ""}
+						onChange={(event) =>
+						updateField("municipality", event.target.value)
+						}
+						style={styles.input}
+					/>
+				)}
 				</label>
 			</div>
 

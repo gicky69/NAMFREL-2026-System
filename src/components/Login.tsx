@@ -23,6 +23,13 @@ export default function Login({ onLogin }: LoginProps) {
 		setError("");
 
 		try {
+			if (!auth) {
+				setError(
+					"Sign-in is unavailable because Firebase configuration is missing. Set the VITE_FIREBASE_* variables in your .env file."
+				);
+				return;
+			}
+
 			const result = await signInWithPopup(auth, new GoogleAuthProvider());
 
 			const user = result.user;

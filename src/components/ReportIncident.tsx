@@ -1,26 +1,33 @@
 import { useEffect, useRef, useState } from "react";
 import { Send, CheckCircle, FileWarning, AlertTriangle } from "lucide-react";
 import { analyzeSentiment } from "@/lib/sentiment";
-import type { NewIncident } from "@/types";
+import type { ElectionRegion, NewIncident } from "@/types";
 import { ORGANIZATIONS, type Organization } from "@/types";
-import { BARMM_PROVINCES, SEVERITY_LEVELS } from "@/types";
+import {
+  BARMM_PROVINCES,
+  BATANES_MUNICIPALITIES,
+  REGION_CONFIG,
+  SEVERITY_LEVELS,
+  inferRegionFromProvince,
+} from "@/types";
 
 import { auth } from "@/lib/firebase";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 interface ReportIncidentProps {
+  region?: ElectionRegion;
   onSubmitted?: () => void;
 }
 
-export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
+export default function ReportIncident({ region = "barmm", onSubmitted }: ReportIncidentProps) {
   
   const [formData, setFormData] = useState<NewIncident>({
     title: "",
     description: "",
     incident_type: "",
     severity: "",
-    province: BARMM_PROVINCES[0],
+    province: region === "batanes" ? "Batanes" : BARMM_PROVINCES[0],
     municipality: "",
     incident_date: new Date().toISOString().split("T")[0],
     incident_hour: "",
@@ -60,13 +67,26 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
     formData.incident_date !== "" &&
     incidentHour !== "" &&
     incidentMinute !== "" &&
-    incidentPeriod !== "" &&
+    Boolean(incidentPeriod) &&
     formData.organization !== "" &&
-    formData.contact_info.trim() !== "";
+    (formData.contact_info ?? "").trim() !== "";
 
   const handleChange = (field: keyof NewIncident, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    setFormData((prev) => {
+      if (field === "province") {
+        return { ...prev, province: value, municipality: "" };
+      }
+      return { ...prev, [field]: value };
+    });
   };
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      province: region === "batanes" ? "Batanes" : BARMM_PROVINCES[0],
+      municipality: "",
+    }));
+  }, [region]);
 
   const handleDescriptionChange = (value: string) => {
     setFormData((prev) => ({ ...prev, description: value }));
@@ -140,6 +160,7 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
           severity: formData.severity,
           province: formData.province,
           municipality: formData.municipality || null,
+          region: inferRegionFromProvince(formData.province),
           incident_date: formData.incident_date,
           incident_time: formattedTime,
 
@@ -153,7 +174,7 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
           organization: formData.organization,
         };
 
-        const token = await auth.currentUser?.getIdToken();
+        const token = await auth?.currentUser?.getIdToken();
         if (!token) {
           throw new Error("Failed to obtain authentication token");
         }
@@ -187,7 +208,7 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
           incident_hour: "",
           incident_minute: "",
           incident_period: "AM",
-          province: BARMM_PROVINCES[0],
+          province: region === "batanes" ? "Batanes" : BARMM_PROVINCES[0],
           municipality: "",
           incident_date: new Date().toISOString().split("T")[0],
           reported_by: "",
@@ -255,7 +276,7 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
   useEffect(() => {
     const fetchIncidentTypes = async () => {
       try {
-        const user = auth.currentUser;
+        const user = auth?.currentUser;
 
         if (!user) {
           return;
@@ -325,7 +346,7 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Report an Election Incident</h2>
         <p className="text-sm text-slate-500 mt-1">
-          Help monitor the BARMM election by reporting incidents you've witnessed or experienced
+          Help monitor the {REGION_CONFIG[inferRegionFromProvince(formData.province)].shortLabel} election by reporting incidents you've witnessed or experienced
         </p>
       </div>
 
@@ -457,22 +478,40 @@ export default function ReportIncident({ onSubmitted }: ReportIncidentProps) {
               onChange={(e) => handleChange("province", e.target.value)}
               className="input-field cursor-pointer"
             >
-              {BARMM_PROVINCES.map((prov) => (
-                <option key={prov} value={prov}>{prov}</option>
-              ))}
+              <optgroup label="BARMM">
+                {BARMM_PROVINCES.map((prov) => (
+                  <option key={prov} value={prov}>{prov}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Region II">
+                <option value="Batanes">Batanes</option>
+              </optgroup>
             </select>
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Municipality
             </label>
-            <input
-              type="text"
-              value={formData.municipality}
-              onChange={(e) => handleChange("municipality", e.target.value)}
-              placeholder="e.g. Marawi City"
-              className="input-field"
-            />
+            {formData.province === "Batanes" ? (
+              <select
+                value={formData.municipality}
+                onChange={(e) => handleChange("municipality", e.target.value)}
+                className="input-field cursor-pointer"
+              >
+                <option value="">Select Municipality</option>
+                {BATANES_MUNICIPALITIES.map((mun) => (
+                  <option key={mun} value={mun}>{mun}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={formData.municipality}
+                onChange={(e) => handleChange("municipality", e.target.value)}
+                placeholder="e.g. Marawi City"
+                className="input-field"
+              />
+            )}
           </div>
         </div>
 

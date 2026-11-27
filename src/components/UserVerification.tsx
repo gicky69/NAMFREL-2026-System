@@ -1,10 +1,12 @@
-import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 export default function PendingVerification() {
     
     const handleLogout = async () => {
         try {
+        if (!auth) {
+            throw new Error("Firebase authentication is not configured");
+        }
         await auth.signOut();
         } catch (error) {
         console.error("Error signing out:", error);

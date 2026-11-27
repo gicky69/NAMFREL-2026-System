@@ -1,13 +1,24 @@
-import React from "react";
-import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
+import React, { useEffect } from "react";
+import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
 import type { Layer, PathOptions } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 import barmmData from "@/data/public/barmm.json";
 import cotabatoCityData from "@/data/public/cotabato-city.json";
+import batanesData from "@/data/public/batanes-municipalities.json";
+import { REGION_CONFIG, type ElectionRegion } from "@/types";
 
 interface ProvinceMapProps {
+  region: ElectionRegion;
   provinceCounts: Record<string, number>;
+}
+
+function MapViewportController({ center, zoom }: { center: [number, number]; zoom: number }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, zoom, { animate: true });
+  }, [map, center, zoom]);
+  return null;
 }
 
 const getColor = (count: number): string => {
@@ -26,26 +37,34 @@ const LEGEND_ITEMS = [
   { label: "0 Incidents", color: "#e2e8f0" },
 ];
 
-export function ProvinceMap({ provinceCounts }: ProvinceMapProps) {
+export function ProvinceMap({ region, provinceCounts }: ProvinceMapProps) {
   const geoJsonData = barmmData as any;
   const cotabatoGeoJson = cotabatoCityData as any;
+  const batanesGeoJson = batanesData as any;
+  const regionConfig = REGION_CONFIG[region];
 
-const styleFeature = (feature: any): PathOptions => {
-    let provinceName =
+  const extractFeatureName = (feature: any): string => {
+    let name =
       feature?.properties?.PROV_NAM ||
+      feature?.properties?.ADM3_EN ||
+      feature?.properties?.adm3_en ||
       feature?.properties?.ADM2_EN ||
       feature?.properties?.adm2_en ||
       feature?.properties?.name ||
       "";
 
-    if (!provinceName && feature?.id === 1909900000) {
-      provinceName = "Special Geographic Area";
+    if (!name && feature?.id === 1909900000) {
+      name = "Special Geographic Area";
     }
+    return name;
+  };
 
-    const normalizedName = provinceName.toUpperCase();
+  const styleFeature = (feature: any): PathOptions => {
+    const featureName = extractFeatureName(feature);
+
+    const normalizedName = featureName.toUpperCase();
     const lookupName = normalizedName === "COTABATO CITY" ? "COTABATO CITY (ICC)" : normalizedName;
-    
-    
+
     const matchedKey = Object.keys(provinceCounts).find(
       key => key.toUpperCase() === lookupName
     );
@@ -62,25 +81,16 @@ const styleFeature = (feature: any): PathOptions => {
   };
 
   const onEachFeature = (feature: any, layer: Layer) => {
-    let provinceName =
-      feature?.properties?.PROV_NAM ||
-      feature?.properties?.ADM2_EN ||
-      feature?.properties?.adm2_en ||
-      feature?.properties?.name ||
-      "";
+    const featureName = extractFeatureName(feature);
 
-    if (!provinceName && feature?.id === 1909900000) {
-      provinceName = "Special Geographic Area";
-    }
-
-    const displayName = provinceName.toUpperCase() === "COTABATO CITY"
+    const displayName = featureName.toUpperCase() === "COTABATO CITY"
       ? "Cotabato City (ICC)"
-      : provinceName;
-      
-    const normalizedName = provinceName.toUpperCase();
+      : featureName;
+
+    const normalizedName = featureName.toUpperCase();
     const lookupName = normalizedName === "COTABATO CITY" ? "COTABATO CITY (ICC)" : normalizedName;
-    
-    // NEW: Case-insensitive search through the provinceCounts keys
+
+    // Case-insensitive search through the provinceCounts keys
     const matchedKey = Object.keys(provinceCounts).find(
       key => key.toUpperCase() === lookupName
     );
@@ -95,16 +105,17 @@ const styleFeature = (feature: any): PathOptions => {
   return (
     <div className="relative w-full h-80 rounded-lg overflow-hidden border border-slate-200">
       <MapContainer
-        center={[6.6, 122.2]}
-        zoom={7}
+        center={regionConfig.mapCenter}
+        zoom={regionConfig.mapZoom}
         scrollWheelZoom={false}
         className="w-full h-full z-0"
       >
+        <MapViewportController center={regionConfig.mapCenter} zoom={regionConfig.mapZoom} />
         <TileLayer
           attribution='&copy; <a href="https://www.esri.com/">Esri</a>'
           url="https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}"
         />
-        {geoJsonData && (
+        {region === "barmm" && geoJsonData && (
           <GeoJSON
             key={`barmm-${JSON.stringify(provinceCounts)}`}
             data={geoJsonData}
@@ -116,10 +127,18 @@ const styleFeature = (feature: any): PathOptions => {
             Norte's polygon — Cotabato City is an independent city and isn't
             part of the BARMM province boundaries above, so it needs its own
             overlay to show up as a distinct shaded area. */}
-        {cotabatoGeoJson && (
+        {region === "barmm" && cotabatoGeoJson && (
           <GeoJSON
             key={`cotabato-city-${JSON.stringify(provinceCounts)}`}
             data={cotabatoGeoJson}
+            style={styleFeature}
+            onEachFeature={onEachFeature}
+          />
+        )}
+        {region === "batanes" && batanesGeoJson && (
+          <GeoJSON
+            key={`batanes-${JSON.stringify(provinceCounts)}`}
+            data={batanesGeoJson}
             style={styleFeature}
             onEachFeature={onEachFeature}
           />

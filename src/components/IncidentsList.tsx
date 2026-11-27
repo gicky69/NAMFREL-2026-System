@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Search, Filter, MapPin, Calendar, User, FileText } from "lucide-react";
-import type { Incident, IncidentType, Severity, IncidentStatus } from "@/types";
-import { INCIDENT_TYPES, SEVERITY_LEVELS, INCIDENT_STATUSES } from "@/types";
+import type { ElectionRegion, Incident, IncidentType, Severity, IncidentStatus } from "@/types";
+import { INCIDENT_TYPES, REGION_CONFIG, SEVERITY_LEVELS, INCIDENT_STATUSES } from "@/types";
 import { LoadingSpinner, ErrorState, EmptyState } from "@/components/States";
 import { SentimentBadge } from "@/components/SentimentBadge";
 import { IncidentTypeBadge, SeverityBadge, StatusBadge } from "@/components/Badges";
@@ -10,7 +10,7 @@ import { auth } from "@/lib/firebase";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-export default function IncidentsList() {
+export default function IncidentsList({ region = "barmm" }: { region?: ElectionRegion }) {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -271,12 +271,12 @@ export default function IncidentsList() {
   const fetchIncidents = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const user = auth.currentUser;
+    const user = auth?.currentUser;
     try {
 
       const token = await user?.getIdToken();
 
-      const res = await fetch(`${API_URL}/api/incidents?status=verified`, {
+      const res = await fetch(`${API_URL}/api/incidents?status=verified&region=${region}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -299,9 +299,10 @@ export default function IncidentsList() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [region]);
 
   useEffect(() => {
+    setProvinceFilter("all");
     fetchIncidents();
   }, [fetchIncidents]); 
 
@@ -335,7 +336,7 @@ export default function IncidentsList() {
       <div>
         <h2 className="text-2xl font-bold text-slate-900">Election Incident Reports</h2>
         <p className="text-sm text-slate-500 mt-1">
-          Community-reported incidents across the BARMM region, classified by type and severity
+          Community-reported incidents across {REGION_CONFIG[region].subtitle}, classified by type and severity
         </p>
       </div>
 

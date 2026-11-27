@@ -26,6 +26,14 @@ const BARMM_KEYWORDS = [
   "bangsamoro transition authority", "regional governor",
 ];
 
+const BATANES_KEYWORDS = [
+  "batanes", "basco", "itbayat", "mahatao", "sabtang", "uyugan",
+  "ivana, batanes", "ivana batanes", "ivatan",
+  "batanes election", "batanes polls", "comelec batanes",
+];
+
+const ALL_KEYWORDS = [...BARMM_KEYWORDS, ...BATANES_KEYWORDS];
+
 const SCRAPE_SOURCES: ScrapeSource[] = [
   {
     name: "Rappler",
@@ -117,13 +125,31 @@ function analyzeSentiment(text: string): { score: number; label: string } {
   return { score: Math.round(score * 100) / 100, label };
 }
 
+function hasIvanaBatanes(lower: string): boolean {
+  if (!/\bivana\b/.test(lower)) return false;
+  return ["batanes", "ivatan", "basco", "itbayat", "mahatao", "sabtang", "uyugan"].some((ctx) =>
+    lower.includes(ctx)
+  );
+}
+
+function detectRegion(text: string): "barmm" | "batanes" {
+  const lower = text.toLowerCase();
+  if (BATANES_KEYWORDS.some((kw) => lower.includes(kw)) || hasIvanaBatanes(lower)) {
+    return "batanes";
+  }
+  return "barmm";
+}
+
 function extractKeywords(text: string): string[] {
   const lower = text.toLowerCase();
   const found: string[] = [];
-  for (const keyword of BARMM_KEYWORDS) {
+  for (const keyword of ALL_KEYWORDS) {
     if (lower.includes(keyword)) {
       found.push(keyword);
     }
+  }
+  if (hasIvanaBatanes(lower)) {
+    found.push("ivana, batanes");
   }
   return [...new Set(found)].slice(0, 8);
 }
@@ -140,12 +166,16 @@ function detectProvince(text: string): string | null {
       return prov.charAt(0).toUpperCase() + prov.slice(1);
     }
   }
+  const batanesLocations = ["batanes", "basco", "itbayat", "mahatao", "sabtang", "uyugan"];
+  if (batanesLocations.some((loc) => lower.includes(loc)) || hasIvanaBatanes(lower)) {
+    return "Batanes";
+  }
   return null;
 }
 
-function isBarmmRelated(title: string, summary: string): boolean {
+function isRelevantArticle(title: string, summary: string): boolean {
   const text = (title + " " + summary).toLowerCase();
-  return BARMM_KEYWORDS.some((kw) => text.includes(kw));
+  return ALL_KEYWORDS.some((kw) => text.includes(kw)) || hasIvanaBatanes(text);
 }
 
 function stripHtml(html: string): string {
@@ -245,8 +275,8 @@ Deno.serve(async (req: Request) => {
         const items = parseRssItems(xml, source);
 
         for (const item of items) {
-          // Check if BARMM-related
-          if (!isBarmmRelated(item.title, item.summary)) {
+          // Check if BARMM or Batanes related
+          if (!isRelevantArticle(item.title, item.summary)) {
             totalSkipped++;
             continue;
           }
@@ -267,6 +297,7 @@ Deno.serve(async (req: Request) => {
           const sentiment = analyzeSentiment(fullText);
           const keywords = extractKeywords(fullText);
           const province = detectProvince(fullText);
+          const region = detectRegion(fullText);
 
           const { error: insertError } = await supabase
             .from("news_articles")
@@ -280,6 +311,7 @@ Deno.serve(async (req: Request) => {
               sentiment_label: sentiment.label,
               keywords,
               province,
+              region,
             });
 
           if (insertError) {

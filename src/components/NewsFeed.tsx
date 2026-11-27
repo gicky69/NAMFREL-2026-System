@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { RefreshCw, ExternalLink, MapPin, Search, Filter } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import type { NewsArticle, SentimentLabel } from "@/types";
+import { REGION_CONFIG, type ElectionRegion, type NewsArticle, type SentimentLabel } from "@/types";
 import { LoadingSpinner, ErrorState, EmptyState } from "@/components/States";
 import { SentimentBadge } from "@/components/SentimentBadge";
 import { formatDate } from "@/lib/sentiment";
@@ -16,11 +16,12 @@ type Profile = {
 };
 
 type Props = {
+  region?: ElectionRegion;
   profile: Profile | null;
-  onLogout: () => void;
+  onLogout?: () => void;
 };
 
-export default function NewsFeed({ profile, onLogout }: Props) {
+export default function NewsFeed({ region = "barmm", profile, onLogout }: Props) {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +49,7 @@ export default function NewsFeed({ profile, onLogout }: Props) {
       const { data, error: err } = await supabase
         .from("news_articles")
         .select("*")
+        .eq("region", region)
         .order("published_date", { ascending: false });
       if (err) throw err;
       setArticles(data || []);
@@ -57,7 +59,7 @@ export default function NewsFeed({ profile, onLogout }: Props) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [region]);
 
   useEffect(() => {
     fetchArticles();
@@ -115,7 +117,7 @@ export default function NewsFeed({ profile, onLogout }: Props) {
     }
 
     try {
-      const token = await auth.currentUser?.getIdToken();
+      const token = await auth?.currentUser?.getIdToken();
       const response = await fetch(`${API_URL}/api/news/scrape`, {
         method: "POST",
         headers: {
@@ -142,7 +144,7 @@ export default function NewsFeed({ profile, onLogout }: Props) {
       setScrapeMessage(
         `Scraped ${result.scraped || 0} new article${
           result.scraped === 1 ? "" : "s"
-        }, skipped ${result.skipped || 0} existing or non-BARMM articles${
+        }, skipped ${result.skipped || 0} existing or non-matching articles${
           errors.length
             ? `. ${errors.length} source issue${errors.length === 1 ? "" : "s"}`
             : ""
@@ -192,7 +194,7 @@ export default function NewsFeed({ profile, onLogout }: Props) {
         <div>
           <h2 className="text-2xl font-bold text-slate-900">News & Sentiment Feed</h2>
           <p className="text-sm text-slate-500 mt-1">
-            BARMM election news scraped from Philippine news outlets with automated sentiment analysis
+            {REGION_CONFIG[region].shortLabel} election news scraped from Philippine news outlets with automated sentiment analysis
           </p>
         </div>
         {isAdmin && (
@@ -292,7 +294,7 @@ export default function NewsFeed({ profile, onLogout }: Props) {
       {filteredArticles.length === 0 ? (
         <EmptyState
           title="No articles found"
-          message={verifiedArticles.length === 0 ? "Click 'Scrape Latest News' to fetch BARMM election news." : "Try adjusting your filters or search query."}
+          message={verifiedArticles.length === 0 ? `Click 'Scrape Latest News' to fetch ${REGION_CONFIG[region].shortLabel} election news.` : "Try adjusting your filters or search query."}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4">

@@ -27,6 +27,8 @@ export default function App() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!auth) return;
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       // Public visitor / logged out
       if (!user) {
@@ -82,6 +84,10 @@ export default function App() {
     setError("");
 
     try {
+      if (!auth) {
+        throw new Error("Firebase authentication is not configured");
+      }
+
       await signInWithPopup(
         auth,
         new GoogleAuthProvider()

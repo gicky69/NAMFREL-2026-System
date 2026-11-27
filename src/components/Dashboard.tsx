@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { TrendingUp, TrendingDown, Minus, Newspaper, AlertTriangle, Activity, MapPin, BarChart3, RefreshCw, FileWarning, CheckCircle } from "lucide-react";
-import type { NewsArticle, SentimentLabel } from "@/types";
-import { INCIDENT_TYPES, SEVERITY_LEVELS } from "@/types";
+import type { ElectionRegion, NewsArticle, SentimentLabel } from "@/types";
+import { INCIDENT_TYPES, REGION_CONFIG, SEVERITY_LEVELS } from "@/types";
 import { LoadingSpinner, ErrorState, EmptyState } from "@/components/States";
 import { SentimentBadge } from "@/components/SentimentBadge";
 import { formatDate } from "@/lib/sentiment";
@@ -18,6 +18,7 @@ interface IncidentSummary {
     severity: Record<string, number>;
     incident_type: Record<string, number>;
     provinces: Record<string, number>;
+    municipalities: Record<string, number>;
   };
   unverified: {
     total: number;
@@ -36,10 +37,11 @@ type IncidentCategory = {
   description: string | null;
 };
 
-export default function Dashboard() {
+export default function Dashboard({ region = "barmm" }: { region?: ElectionRegion }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const regionConfig = REGION_CONFIG[region];
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -47,8 +49,8 @@ export default function Dashboard() {
     try {
 
       const [articleRes, incidentRes] = await Promise.all([
-        fetch(`${API_URL}/api/articles`),
-        fetch(`${API_URL}/api/incidents/summary`)
+        fetch(`${API_URL}/api/articles?region=${region}`),
+        fetch(`${API_URL}/api/incidents/summary?region=${region}`)
       ]);
 
       for (const res of [articleRes, incidentRes]) {
@@ -76,6 +78,7 @@ export default function Dashboard() {
             severity: incidentSummary?.verified?.severity ?? {},
             incident_type: incidentSummary?.verified?.incident_type ?? {},
             provinces: incidentSummary?.verified?.provinces ?? {},
+            municipalities: incidentSummary?.verified?.municipalities ?? {},
           },
           unverified: {
             total: incidentSummary?.unverified?.total ?? 0,
@@ -90,7 +93,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [region]);
 
   useEffect(() => {
     fetchData();
@@ -141,6 +144,7 @@ export default function Dashboard() {
     severity: {},
     incident_type: {},
     provinces: {},
+    municipalities: {},
   };
 
   const unverifiedIncidents = incidentSummary?.unverified ?? {
@@ -151,7 +155,10 @@ export default function Dashboard() {
 
   const severityCounts = verifiedIncidents.severity;
   const incidentTypeCounts = verifiedIncidents.incident_type;
-  const provinceCounts = verifiedIncidents.provinces;
+  const provinceCounts =
+    region === "batanes"
+      ? verifiedIncidents.municipalities
+      : verifiedIncidents.provinces;
   const unverifiedSeverityCounts = unverifiedIncidents.severity;
 
   return (
@@ -161,7 +168,7 @@ export default function Dashboard() {
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Election Sentiment Dashboard</h2>
           <p className="text-sm text-slate-500 mt-1">
-            Real-time monitoring of news sentiment and incident reports across the Bangsamoro Autonomous Region
+            Real-time monitoring of news sentiment and incident reports across {regionConfig.subtitle}
           </p>
         </div>
 
@@ -340,7 +347,7 @@ export default function Dashboard() {
               <h3 className="font-bold text-slate-900">Recent News Articles</h3>
             </div>
             {recentArticles.length === 0 ? (
-              <EmptyState title="No verified articles yet" message="Click 'Scrape Latest News' in the News & Sentiment Feed to fetch BARMM election news." />
+              <EmptyState title="No verified articles yet" message={`Click 'Scrape Latest News' in the News & Sentiment Feed to fetch ${regionConfig.shortLabel} election news.`} />
             ) : (
               <div className="space-y-3">
                 {recentArticles.map((article) => (
@@ -376,16 +383,16 @@ export default function Dashboard() {
 
           <div className="flex flex-col gap-6">
 
-            {/* Province distribution */}
+            {/* Province / Municipality distribution */}
             <div className="card p-6">
               <div className="flex items-center gap-2 mb-4">
                 <MapPin className="w-5 h-5 text-warning" />
-                <h3 className="font-bold text-slate-900">Incidents by Province</h3>
+                <h3 className="font-bold text-slate-900">Incidents by {regionConfig.unitLabel}</h3>
               </div>
 
               {/* Choropleth Heatmap */}
               <div className="mb-5">
-                <ProvinceMap provinceCounts={provinceCounts} />
+                <ProvinceMap region={region} provinceCounts={provinceCounts} />
               </div>
 
               {/* Existing progress bar distribution */}
