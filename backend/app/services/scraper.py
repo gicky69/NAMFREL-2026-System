@@ -382,6 +382,17 @@ def _fetch_via_browser(url: str, wait_until: str = "networkidle", timeout_ms: in
     return body
 
 
+def _extract_date_from_url(url: str) -> datetime | None:
+    """Extract YYYY/MM/DD publication date from article URLs when available."""
+    m = re.search(r"/(20\d{2})/(\d{2})/(\d{2})/", url)
+    if not m:
+        return None
+    try:
+        return datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:
+        return None
+
+
 def _save_if_new(db: Session, title: str, url: str, summary: str, source_name: str, published_date) -> bool:
     if not title or not url:
         return False
@@ -391,6 +402,9 @@ def _save_if_new(db: Session, title: str, url: str, summary: str, source_name: s
     exists = db.query(NewsArticle).filter(NewsArticle.url == url).first()
     if exists:
         return False
+
+    if published_date is None:
+        published_date = _extract_date_from_url(url)
 
     score, label = analyze_sentiment(summary or title)
 

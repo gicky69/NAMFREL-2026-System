@@ -50,7 +50,8 @@ export default function NewsFeed({ region = "barmm", profile, onLogout }: Props)
         .from("news_articles")
         .select("*")
         .eq("region", region)
-        .order("published_date", { ascending: false });
+        .order("published_date", { ascending: false, nullsFirst: false })
+        .order("scraped_at", { ascending: false });
       if (err) throw err;
       setArticles(data || []);
 

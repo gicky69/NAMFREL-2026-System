@@ -18,7 +18,10 @@ def list_articles(
     query = db.query(NewsArticle).filter(NewsArticle.status == status)
     if region:
         query = query.filter(NewsArticle.region == region)
-    return query.order_by(desc(NewsArticle.published_date)).all()
+    return query.order_by(
+        desc(NewsArticle.published_date).nullslast(),
+        desc(NewsArticle.scraped_at),
+    ).all()
     
 @router.patch("/{article_id}/status", response_model=NewsArticleOut)
 def update_article_status(

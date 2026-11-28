@@ -113,7 +113,10 @@ def list_articles(
         q = q.filter(NewsArticle.is_election_related.is_(True))
     if region:
         q = q.filter(NewsArticle.region == region)
-    return q.order_by(NewsArticle.published_date.desc()).limit(limit).all()
+    return q.order_by(
+        NewsArticle.published_date.desc().nullslast(),
+        NewsArticle.scraped_at.desc(),
+    ).limit(limit).all()
 
 @router.get("/sentiment-status")
 def sentiment_status_summary(db: Session = Depends(get_db)):
